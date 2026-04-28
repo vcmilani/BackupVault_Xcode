@@ -1,10 +1,10 @@
 import SwiftUI
 
 enum NavItem: String, CaseIterable, Identifiable {
-    case dashboard    = "Dashboard"
-    case backups      = "Backups"
-    case configs      = "Meus Backups"
-    case cleanup      = "Limpeza"
+    case dashboard    = "nav.dashboard"
+    case backups      = "nav.backups"
+    case configs      = "nav.my_backups"
+    case cleanup      = "nav.cleanup"
 
     var id: String { rawValue }
 
@@ -73,7 +73,7 @@ struct SidebarView: View {
 
             // Nav items
             List(NavItem.allCases, selection: $selection) { item in
-                Label(item.rawValue, systemImage: item.icon)
+                Label(LocalizedStringKey(item.rawValue), systemImage: item.icon)
                     .tag(item)
                     .padding(.vertical, 2)
             }
@@ -94,7 +94,7 @@ struct SidebarView: View {
                         .frame(width: 8, height: 8)
                 }
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(api.isConnected ? "Conectado" : "Desconectado")
+                    Text(api.isConnected ? "sidebar.connected" : "sidebar.disconnected")
                         .font(.caption.weight(.medium))
                     if let err = api.connectionError, !api.isConnected {
                         Text(err)
@@ -119,7 +119,7 @@ struct SidebarView: View {
                         .font(.caption)
                 }
                 .buttonStyle(.plain)
-                .help("Reconectar")
+                .help("sidebar.reconnect")
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)

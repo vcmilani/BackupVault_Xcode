@@ -1,0 +1,238 @@
+/* Dashboard */
+"dashboard.title" = "Dashboard";
+"dashboard.subtitle" = "System backup overview";
+"dashboard.refresh" = "Refresh";
+"dashboard.server_unreachable" = "Server unreachable";
+"dashboard.server_unreachable_desc" = "Check the URL and API Key in Settings.";
+"dashboard.active_backups" = "Active Backups";
+"dashboard.stat.backups" = "Backups";
+"dashboard.stat.versions" = "Versions";
+"dashboard.stat.files" = "Files";
+"dashboard.stat.storage" = "Total Storage";
+"dashboard.how_it_works" = "How it works";
+"dashboard.info.versions.title" = "Backups & Versions";
+"dashboard.info.versions.body" = "Each run creates a version with an automatic timestamp. You can have as many versions as needed for the same label — each one captures the complete state of the folder at that moment.";
+"dashboard.info.dedup.title" = "Content Deduplication";
+"dashboard.info.dedup.body" = "Physical content is stored only once per SHA-256. Identical files across versions or labels share the same block — zero bytes travel over the network if the content already exists.";
+"dashboard.info.deleted.title" = "Deleted Files";
+"dashboard.info.deleted.body" = "Files removed from the client are marked as 'deleted' in the version, never physically erased from storage. This preserves complete history. Cleanup removes entire old versions.";
+"dashboard.info.isolation.title" = "Label Isolation";
+"dashboard.info.isolation.body" = "Each label has its own set of versions. Backup, restore, and cleanup operations are scoped to the label — one backup never interferes with another.";
+
+/* Navigation */
+"nav.dashboard" = "Dashboard";
+"nav.backups" = "Backups";
+"nav.my_backups" = "My Backups";
+"nav.cleanup" = "Cleanup";
+
+/* Backups */
+"backups.title" = "Backups";
+"backups.filter" = "Filter backups";
+"backups.none_found" = "No backups found";
+"backups.none_found_desc" = "Check the server connection";
+"backups.select" = "Select a backup";
+"backups.select_desc" = "Choose a backup from the list on the left";
+"backups.select_version" = "Select a version";
+"backups.select_version_desc" = "Choose a version to see its files";
+"backups.no_selection" = "No selection";
+"backups.no_versions" = "No versions";
+"backups.versions" = "versions";
+"backups.files" = "files";
+"backups.deleted" = "del.";
+"backups.delete_version" = "Delete this version";
+"backups.delete_version_title" = "Delete version?";
+"backups.delete_version_msg" = "Version %@ and its orphan files will be permanently removed.";
+"backups.active" = "active";
+"backups.deleted_files" = "deleted";
+"backups.show_deleted" = "Show deleted";
+"backups.filter_files" = "Filter files…";
+"backups.no_files" = "No files";
+"backups.loading" = "Loading files…";
+"backups.col.file" = "File";
+"backups.col.size" = "Size";
+"backups.col.status" = "Status";
+"backups.col.sha" = "SHA-256";
+"backups.last_version" = "last version";
+"backups.storage" = "storage";
+
+/* My Backups */
+"mybackups.title" = "My Backups";
+"mybackups.none" = "No configurations";
+"mybackups.add" = "Add";
+"mybackups.run_queue" = "Run backup queue";
+"mybackups.new_config" = "New configuration";
+"mybackups.select" = "Select a configuration";
+"mybackups.select_desc" = "Choose or create a new backup configuration";
+"mybackups.inactive" = "INACTIVE";
+"mybackups.edit" = "Edit";
+"mybackups.run" = "Run Backup";
+"mybackups.delete_config" = "Delete configuration";
+"mybackups.delete_server" = "Delete from server…";
+"mybackups.delete_server_title" = "Delete backup from server?";
+"mybackups.delete_server_msg" = "All data and versions of \"%@\" will be permanently deleted from the server.";
+"mybackups.delete_title" = "Delete configuration?";
+"mybackups.delete_msg" = "This configuration will be permanently removed.";
+"mybackups.section.source" = "Source Folder";
+"mybackups.section.server" = "Server";
+"mybackups.section.workers" = "Parallel Workers";
+"mybackups.section.prefix" = "Server Prefix";
+"mybackups.section.excludes" = "Exclusions";
+"mybackups.no_exclusions" = "None";
+"mybackups.cli_command" = "Equivalent command (Python)";
+"mybackups.workers.hint.1" = "Ideal for Pi with SD or large files";
+"mybackups.workers.hint.2" = "Ideal for Pi with external USB drive";
+"mybackups.workers.hint.3" = "Ideal for Pi with SSD";
+"mybackups.workers.hint.4" = "High parallelism — many small files";
+"mybackups.no_label" = "no label";
+
+/* Profile Editor */
+"editor.new" = "New Configuration";
+"editor.edit" = "Edit Configuration";
+"editor.cancel" = "Cancel";
+"editor.save" = "Save";
+"editor.tab.general" = "General";
+"editor.tab.server" = "Server";
+"editor.tab.excludes" = "Exclusions";
+"editor.name" = "Configuration name";
+"editor.label" = "Label (e.g. macbook-john)";
+"editor.active" = "Active";
+"editor.source" = "Source folder";
+"editor.choose" = "Choose…";
+"editor.prefix" = "Server prefix (optional)";
+"editor.server_url" = "Server URL (empty = global default)";
+"editor.server_using" = "Using: %@";
+"editor.server_default" = "Using default: %@";
+"editor.workers_label" = "Workers";
+"editor.workers_hint.1" = "Recommended for Pi with SD or large files (>100 MB)";
+"editor.workers_hint.2" = "Recommended for Pi with external USB drive";
+"editor.workers_hint.3" = "Recommended for Pi with SSD";
+"editor.workers_hint.4" = "High parallelism — ideal for many small files";
+"editor.excludes.title" = "Excluded folders and files";
+"editor.excludes.count" = "%d items";
+"editor.excludes.add" = "Add exclusion (e.g. node_modules)";
+"editor.excludes.add_btn" = "Add";
+"editor.excludes.none" = "No exclusions";
+
+/* Runner */
+"runner.waiting" = "Waiting";
+"runner.running" = "Running…";
+"runner.done" = "Completed";
+"runner.failed" = "Failed";
+"runner.cancelled" = "Cancelled";
+"runner.start" = "Start Backup";
+"runner.run_again" = "Run Again";
+"runner.stop" = "Stop";
+"runner.close" = "Close";
+"runner.cancel" = "Cancel";
+"runner.stat.uploaded" = "Uploaded";
+"runner.stat.registered" = "Registered";
+"runner.stat.ignored" = "Ignored";
+"runner.stat.deleted" = "Deleted";
+"runner.stat.errors" = "Errors";
+
+/* Queue */
+"queue.title" = "Backup Queue";
+"queue.available" = "%d of %d selected";
+"queue.count" = "%d in queue";
+"queue.finished" = "Finished";
+"queue.none_available" = "No configurations available";
+"queue.none_available_desc" = "Create at least one active configuration with a label and folder defined.";
+"queue.select_all" = "Select All";
+"queue.start" = "Start Queue (%d)";
+"queue.stop" = "Stop Queue";
+"queue.run_again" = "Run Again";
+"queue.close" = "Close";
+"queue.waiting" = "Waiting";
+"queue.running" = "Running";
+"queue.done" = "Completed";
+"queue.failed" = "Failed";
+"queue.cancelled" = "Cancelled";
+"queue.skipped" = "Skipped";
+"queue.stat.completed" = "Completed";
+"queue.stat.failed" = "Failed";
+"queue.stat.other" = "Other";
+
+/* Cleanup */
+"cleanup.title" = "Version Cleanup";
+"cleanup.subtitle" = "Removes old versions and frees physical storage on the server";
+"cleanup.target" = "Target";
+"cleanup.all_backups" = "All backups";
+"cleanup.specific" = "Specific backup";
+"cleanup.select_backup" = "Select a backup…";
+"cleanup.keep" = "Versions to keep";
+"cleanup.keep_desc" = "Versions beyond the %d most recent will be permanently removed. Physical files with no references are automatically deleted from storage.";
+"cleanup.preview" = "Preview";
+"cleanup.col.label" = "Label";
+"cleanup.col.current" = "Current";
+"cleanup.col.keep" = "Keep";
+"cleanup.col.remove" = "Remove";
+"cleanup.warn" = "A total of %d version(s) will be removed by this operation.";
+"cleanup.ok" = "No versions will be removed with this criteria.";
+"cleanup.start" = "Start Cleanup";
+"cleanup.running" = "Running…";
+"cleanup.confirm_title" = "Confirm cleanup?";
+"cleanup.confirm_msg" = "This action is irreversible. %d version(s) will be permanently removed from the server.";
+"cleanup.confirm_btn" = "Clean";
+"cleanup.cancel" = "Cancel";
+"cleanup.result_title" = "Cleanup Result";
+"cleanup.stat.labels" = "Labels";
+"cleanup.stat.removed" = "Versions removed";
+"cleanup.stat.freed" = "Files freed";
+
+/* Settings */
+"settings.server_tab" = "Server";
+"settings.about_tab" = "About";
+"settings.url" = "Server URL";
+"settings.api_key" = "API Key";
+"settings.api_key_empty" = "Empty = no authentication";
+"settings.show" = "Show";
+"settings.hide" = "Hide";
+"settings.status" = "Current Status";
+"settings.connected" = "Connected";
+"settings.disconnected" = "Disconnected";
+"settings.save_test" = "Save and Test Connection";
+"settings.tip.api_key" = "The API Key must match the BACKUP_API_KEY variable on the server.";
+"settings.tip.ip" = "Use the Raspberry Pi's local IP (e.g. 192.168.1.100) and port 8000.";
+"settings.tip.service" = "If the server doesn't respond, check if the systemd service is running with 'systemctl status backup-server'.";
+"settings.about.version" = "Version";
+"settings.about.min_macos" = "Minimum macOS";
+"settings.about.server" = "Server";
+"settings.about.github" = "GitHub";
+"settings.about.api_docs" = "API Docs";
+"settings.about.dashboard" = "Web Dashboard";
+"settings.about.open_browser" = "Open in browser";
+"settings.about.swagger" = "Swagger UI (when connected)";
+"settings.about.dedup" = "Deduplication";
+"settings.about.versioning" = "Versioning";
+"settings.about.isolation" = "Isolation";
+"settings.about.cleanup" = "Cleanup";
+
+/* Menu Bar */
+"menubar.connected" = "Connected";
+"menubar.disconnected" = "Disconnected";
+"menubar.refresh" = "Refresh";
+"menubar.no_backups" = "No backups found";
+"menubar.no_connection" = "No server connection";
+"menubar.open" = "Open BackupVault";
+"menubar.settings" = "Settings…";
+"menubar.quit" = "Quit";
+"menubar.stat.backups" = "Backups";
+"menubar.stat.versions" = "Versions";
+"menubar.stat.storage" = "Storage";
+"menubar.last_version" = "last version";
+
+/* Sidebar */
+"sidebar.connected" = "Connected";
+"sidebar.disconnected" = "Disconnected";
+"sidebar.reconnect" = "Reconnect";
+
+/* General */
+"general.cancel" = "Cancel";
+"general.delete" = "Delete";
+"general.edit" = "Edit";
+"general.save" = "Save";
+"general.not_configured" = "Not configured";
+"general.none" = "None";
+"general.versions" = "versions";
+"general.files" = "files";
+"general.storage" = "storage";

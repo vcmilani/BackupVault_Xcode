@@ -282,7 +282,7 @@ struct QueueItemRow: View {
                     }
                 }
             } else {
-                Text(statusLabel)
+                Text(LocalizedStringKey(statusLabel))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(iconColor)
             }
@@ -305,12 +305,12 @@ struct QueueItemRow: View {
 
     var statusLabel: String {
         switch item.status {
-        case .waiting:   return "Aguardando"
-        case .running:   return "Executando"
-        case .done:      return "Concluído"
-        case .failed:    return "Falhou"
-        case .cancelled: return "Cancelado"
-        case .skipped:   return "Ignorado"
+        case .waiting:   return "queue.waiting"
+        case .running:   return "queue.running"
+        case .done:      return "queue.done"
+        case .failed:    return "queue.failed"
+        case .cancelled: return "queue.cancelled"
+        case .skipped:   return "queue.skipped"
         }
     }
 }

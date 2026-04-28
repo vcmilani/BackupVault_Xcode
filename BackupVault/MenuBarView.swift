@@ -29,7 +29,7 @@ struct MenuBarView: View {
                         Circle()
                             .fill(api.isConnected ? Color.green : Color.red)
                             .frame(width: 5, height: 5)
-                        Text(api.isConnected ? "Conectado" : "Desconectado")
+                        Text(api.isConnected ? L("menubar.connected") : L("menubar.disconnected"))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -60,21 +60,21 @@ struct MenuBarView: View {
             HStack(spacing: 0) {
                 MiniStatView(
                     value: "\(api.backups.count)",
-                    label: "Backups",
+                    label: "menubar.stat.backups",
                     icon: "externaldrive",
                     color: .blue
                 )
                 Rectangle().fill(.separator).frame(width: 1)
                 MiniStatView(
                     value: "\(api.globalStats.totalVersions)",
-                    label: "Versões",
+                    label: "menubar.stat.versions",
                     icon: "clock.arrow.circlepath",
                     color: .purple
                 )
                 Rectangle().fill(.separator).frame(width: 1)
                 MiniStatView(
                     value: api.globalStats.formattedSize,
-                    label: "Storage",
+                    label: "menubar.stat.storage",
                     icon: "internaldrive",
                     color: .orange
                 )
@@ -89,7 +89,7 @@ struct MenuBarView: View {
                 HStack {
                     Image(systemName: "externaldrive.trianglebadge.exclamationmark")
                         .foregroundStyle(.secondary)
-                    Text(api.isConnected ? "Nenhum backup encontrado" : "Sem conexão com servidor")
+                    Text(api.isConnected ? "Nenhum backup encontrado" : "menubar.no_connection")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -142,19 +142,19 @@ struct MenuBarView: View {
 
             // ── Actions ──────────────────────────────────────────────
             VStack(spacing: 0) {
-                MenuBarActionButton(label: "Abrir BackupVault", icon: "macwindow") {
+                MenuBarActionButton(label: "menubar.open", icon: "macwindow") {
                     openWindow(id: "main")
                     NSApp.activate(ignoringOtherApps: true)
                 }
 
-                MenuBarActionButton(label: "Ajustes…", icon: "gear") {
+                MenuBarActionButton(label: "menubar.settings", icon: "gear") {
                     NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                     NSApp.activate(ignoringOtherApps: true)
                 }
 
                 Divider().padding(.horizontal, 10)
 
-                MenuBarActionButton(label: "Sair", icon: "power") {
+                MenuBarActionButton(label: "menubar.quit", icon: "power") {
                     NSApplication.shared.terminate(nil)
                 }
             }

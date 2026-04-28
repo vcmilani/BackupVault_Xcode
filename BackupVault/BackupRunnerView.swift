@@ -65,15 +65,15 @@ struct BackupRunnerSheet: View {
             // ── Stats row (when done) ────────────────────────────────
             if runner.status == .done || runner.status == .failed {
                 HStack(spacing: 0) {
-                    MiniRunStat(value: "\(runner.stats.uploaded)",   label: "Enviados",    color: .blue)
+                    MiniRunStat(value: "\(runner.stats.uploaded)",   label: "runner.stat.uploaded",    color: .blue)
                     Divider()
-                    MiniRunStat(value: "\(runner.stats.registered)", label: "Registrados", color: .green)
+                    MiniRunStat(value: "\(runner.stats.registered)", label: "runner.stat.registered", color: .green)
                     Divider()
-                    MiniRunStat(value: "\(runner.stats.ignored)",    label: "Ignorados",   color: .secondary)
+                    MiniRunStat(value: "\(runner.stats.ignored)",    label: "runner.stat.ignored",   color: .secondary)
                     Divider()
-                    MiniRunStat(value: "\(runner.stats.deleted)",    label: "Deletados",   color: .orange)
+                    MiniRunStat(value: "\(runner.stats.deleted)",    label: "runner.stat.deleted",   color: .orange)
                     Divider()
-                    MiniRunStat(value: "\(runner.stats.errors)",     label: "Erros",       color: .red)
+                    MiniRunStat(value: "\(runner.stats.errors)",     label: "runner.stat.errors",       color: .red)
                 }
                 .frame(height: 56)
                 Divider()
@@ -115,20 +115,20 @@ struct BackupRunnerSheet: View {
             // ── Actions ──────────────────────────────────────────────
             HStack {
                 if runner.status == .done || runner.status == .failed {
-                    Button("Fechar") { dismiss() }
+                    Button("runner.close") { dismiss() }
                 }
                 Spacer()
                 if runner.status == .idle {
-                    Button("Cancelar") { dismiss() }
+                    Button("runner.cancel") { dismiss() }
                 }
                 if runner.status == .running {
-                    Button("Parar") {
+                    Button("runner.stop") {
                         runner.cancel()
                     }
                     .buttonStyle(.bordered)
                     .tint(.orange)
                 }
-                Button(runner.status == .idle ? "Iniciar Backup" : "Executar Novamente") {
+                Button(runner.status == .idle ? "runner.start" : "runner.run_again") {
                     Task { await runner.run(profile: profile) }
                 }
                 .buttonStyle(.borderedProminent)
@@ -144,22 +144,22 @@ struct BackupRunnerSheet: View {
         Group {
             switch runner.status {
             case .idle:
-                Text("Aguardando")
+                Text("runner.waiting")
                     .foregroundStyle(.secondary)
             case .running:
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.small)
-                    Text("Executando…")
+                    Text("runner.running")
                         .foregroundStyle(.blue)
                 }
             case .done:
-                Label("Concluído", systemImage: "checkmark.circle.fill")
+                Label("runner.done", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
             case .failed:
-                Label("Falhou", systemImage: "xmark.circle.fill")
+                Label("runner.failed", systemImage: "xmark.circle.fill")
                     .foregroundStyle(.red)
             case .cancelled:
-                Label("Cancelado", systemImage: "stop.circle.fill")
+                Label("runner.cancelled", systemImage: "stop.circle.fill")
                     .foregroundStyle(.orange)
             }
         }
@@ -178,7 +178,7 @@ struct MiniRunStat: View {
             Text(value)
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(color)
-            Text(label)
+            Text(LocalizedStringKey(label))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }

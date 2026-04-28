@@ -48,7 +48,7 @@ struct BackupsView: View {
     var backupsPane: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Backups").font(.headline)
+                Text("backups.title").font(.headline)
                 Spacer()
                 if api.isLoadingBackups { ProgressView().controlSize(.small) }
                 Button { Task { await api.fetchBackups() } } label: {
@@ -111,7 +111,7 @@ struct BackupsView: View {
                 .padding(.horizontal, 12).padding(.vertical, 10)
                 Divider()
                 if versions.isEmpty && !loadingVersions {
-                    PlaceholderView(title: "Sem versões", icon: "clock.arrow.circlepath")
+                    PlaceholderView(title: "backups.no_versions", icon: "clock.arrow.circlepath")
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
@@ -135,7 +135,7 @@ struct BackupsView: View {
                                         pendingDelete = version
                                         showDeleteVersion = true
                                     } label: {
-                                        Label("Excluir esta versão", systemImage: "trash")
+                                        Label("backups.delete_version", systemImage: "trash")
                                     }
                                 }
                                 Divider()
@@ -144,7 +144,7 @@ struct BackupsView: View {
                     }
                 }
             } else {
-                PlaceholderView(title: "Selecione um backup", icon: "externaldrive")
+                PlaceholderView(title: L("backups.select"), icon: "externaldrive")
             }
         }
         .background(Color(NSColor.controlBackgroundColor))
@@ -157,9 +157,9 @@ struct BackupsView: View {
             if let version = selectedVersion {
                 FilesDetailView(version: version, files: files, isLoading: loadingFiles)
             } else if selectedBackup != nil {
-                PlaceholderView(title: "Selecione uma versão", icon: "clock.arrow.circlepath")
+                PlaceholderView(title: L("backups.select_version"), icon: "clock.arrow.circlepath")
             } else {
-                PlaceholderView(title: "Selecione um backup", icon: "externaldrive")
+                PlaceholderView(title: L("backups.select"), icon: "externaldrive")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -261,17 +261,17 @@ struct FilesDetailView: View {
                     .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Toggle("Mostrar deletados", isOn: $showDeleted).toggleStyle(.checkbox).font(.caption)
+                Toggle("backups.show_deleted", isOn: $showDeleted).toggleStyle(.checkbox).font(.caption)
             }
             .padding(.horizontal, 16).padding(.vertical, 10)
             Divider()
             if isLoading {
-                Spacer(); ProgressView("Carregando arquivos...").padding(); Spacer()
+                Spacer(); ProgressView("backups.loading").padding(); Spacer()
             } else if filtered.isEmpty {
-                PlaceholderView(title: "Nenhum arquivo", icon: "doc.on.doc")
+                PlaceholderView(title: "backups.no_files", icon: "doc.on.doc")
             } else {
                 Table(filtered, sortOrder: $sortOrder) {
-                    TableColumn("Arquivo", value: \.originalPath) { file in
+                    TableColumn("backups.col.file", value: \.originalPath) { file in
                         HStack(spacing: 6) {
                             Image(systemName: file.isDeleted ? "doc.fill" : "doc")
                                 .font(.caption)
@@ -282,19 +282,19 @@ struct FilesDetailView: View {
                                 .strikethrough(file.isDeleted).lineLimit(1)
                         }
                     }
-                    TableColumn("Tamanho", value: \.size) { file in
+                    TableColumn("backups.col.size", value: \.size) { file in
                         Text(file.formattedSize).font(.caption).foregroundStyle(.secondary)
                     }.width(80)
-                    TableColumn("Status") { file in
+                    TableColumn("backups.col.status") { file in
                         Text(file.status).font(.caption.weight(.medium))
                             .foregroundStyle(file.isDeleted ? .red : .green)
                     }.width(70)
-                    TableColumn("SHA-256") { file in
+                    TableColumn("backups.col.sha") { file in
                         Text(String(file.sha256.prefix(12)) + "…")
                             .font(.caption2.monospaced()).foregroundStyle(.tertiary)
                     }.width(100)
                 }
-                .searchable(text: $fileSearch, prompt: "Filtrar arquivos…")
+                .searchable(text: $fileSearch, prompt: "backups.filter_files")
             }
         }
     }

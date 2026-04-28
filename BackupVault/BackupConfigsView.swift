@@ -20,7 +20,7 @@ struct BackupConfigsView: View {
             // ── Left: Profile List ───────────────────────────────────
             VStack(spacing: 0) {
                 HStack {
-                    Text("Configurações")
+                    Text("mybackups.title")
                         .font(.headline)
                     Spacer()
                     Text("\(store.profiles.count)")
@@ -32,13 +32,13 @@ struct BackupConfigsView: View {
                         Image(systemName: "play.rectangle.on.rectangle").font(.caption)
                     }
                     .buttonStyle(.plain)
-                    .help("Executar fila de backups")
+                    .help("mybackups.run_queue")
                     .disabled(store.profiles.filter { $0.enabled }.isEmpty)
                     Button { showAdd = true } label: {
                         Image(systemName: "plus").font(.caption)
                     }
                     .buttonStyle(.plain)
-                    .help("Nova configuração")
+                    .help("mybackups.new_config")
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
@@ -50,9 +50,9 @@ struct BackupConfigsView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "slider.horizontal.3")
                             .font(.largeTitle).foregroundStyle(.secondary)
-                        Text("Nenhuma configuração")
+                        Text("mybackups.none")
                             .font(.subheadline).foregroundStyle(.secondary)
-                        Button("Adicionar") { showAdd = true }
+                        Button(L("mybackups.add")) { showAdd = true }
                             .buttonStyle(.borderedProminent)
                     }
                     Spacer()
@@ -68,12 +68,12 @@ struct BackupConfigsView: View {
                                     .contentShape(Rectangle())
                                     .onTapGesture { selected = profile }
                                     .contextMenu {
-                                        Button("Editar") { editing = profile }
+                                        Button(L("mybackups.edit")) { editing = profile }
                                         Divider()
                                         Button("Excluir configuração", role: .destructive) {
                                             selected = profile; showDelete = true
                                         }
-                                        Button("Excluir do servidor…", role: .destructive) {
+                                        Button("mybackups.delete_server", role: .destructive) {
                                             selected = profile; showDeleteBackup = true
                                         }
                                     }
@@ -98,7 +98,7 @@ struct BackupConfigsView: View {
                     )
                 } else {
                     PlaceholderView(
-                        title: "Selecione uma configuração",
+                        title: "mybackups.select",
                         icon: "slider.horizontal.3",
                         description: "Escolha ou crie uma nova configuração de backup"
                     )
@@ -200,7 +200,7 @@ struct ProfileDetailView: View {
                             Text(profile.name)
                                 .font(.title2.bold())
                             if !profile.enabled {
-                                Text("INATIVO")
+                                Text("mybackups.inactive")
                                     .font(.caption.weight(.bold))
                                     .foregroundStyle(.secondary)
                                     .padding(.horizontal, 8).padding(.vertical, 3)
@@ -211,9 +211,9 @@ struct ProfileDetailView: View {
                             .font(.subheadline).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button("Editar", action: onEdit)
+                    Button("mybackups.edit", action: onEdit)
                         .buttonStyle(.bordered)
-                    Button("Executar Backup") { showRunner = true }
+                    Button("mybackups.run") { showRunner = true }
                         .buttonStyle(.borderedProminent)
                         .tint(.blue)
                         .disabled(!profile.enabled || profile.sourcePath.isEmpty || profile.label.isEmpty)
