@@ -1,0 +1,223 @@
+import SwiftUI
+
+struct MenuBarView: View {
+    @EnvironmentObject var api:   APIService
+    @EnvironmentObject var store: ConfigStore
+    @Environment(\.openWindow) private var openWindow
+
+    @State private var isRefreshing = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+
+            // ── Header ───────────────────────────────────────────────
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(LinearGradient(
+                            colors: [Color(hex: "4F8EF7"), Color(hex: "7B5EA7")],
+                            startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 30, height: 30)
+                    Image(systemName: "externaldrive.badge.checkmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("BackupVault")
+                        .font(.headline)
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(api.isConnected ? Color.green : Color.red)
+                            .frame(width: 5, height: 5)
+                        Text(api.isConnected ? "Conectado" : "Desconectado")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                Button {
+                    isRefreshing = true
+                    Task {
+                        await api.checkHealth()
+                        await api.fetchBackups()
+                        isRefreshing = false
+                    }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.caption)
+                        .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                        .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                }
+                .buttonStyle(.plain)
+                .help("Atualizar")
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+
+            Divider()
+
+            // ── Stats Mini Row ───────────────────────────────────────
+            HStack(spacing: 0) {
+                MiniStatView(
+                    value: "\(api.backups.count)",
+                    label: "Backups",
+                    icon: "externaldrive",
+                    color: .blue
+                )
+                Rectangle().fill(.separator).frame(width: 1)
+                MiniStatView(
+                    value: "\(api.globalStats.totalVersions)",
+                    label: "Versões",
+                    icon: "clock.arrow.circlepath",
+                    color: .purple
+                )
+                Rectangle().fill(.separator).frame(width: 1)
+                MiniStatView(
+                    value: api.globalStats.formattedSize,
+                    label: "Storage",
+                    icon: "internaldrive",
+                    color: .orange
+                )
+            }
+            .frame(height: 60)
+            .background(.background.secondary)
+
+            Divider()
+
+            // ── Backups List ─────────────────────────────────────────
+            if api.backups.isEmpty {
+                HStack {
+                    Image(systemName: "externaldrive.trianglebadge.exclamationmark")
+                        .foregroundStyle(.secondary)
+                    Text(api.isConnected ? "Nenhum backup encontrado" : "Sem conexão com servidor")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(14)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(api.backups.prefix(5)) { backup in
+                        HStack(spacing: 8) {
+                            Image(systemName: "externaldrive.fill")
+                                .font(.caption)
+                                .foregroundStyle(.blue)
+                                .frame(width: 18)
+
+                            Text(backup.label)
+                                .font(.caption.weight(.medium))
+                                .lineLimit(1)
+
+                            Spacer()
+
+                            VStack(alignment: .trailing, spacing: 1) {
+                                Text(backup.formattedSize)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                if let date = backup.lastVersionDate {
+                                    Text(date.formatted(.relative(presentation: .named)))
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+
+                        if backup.label != api.backups.prefix(5).last?.label {
+                            Divider().padding(.leading, 40)
+                        }
+                    }
+
+                    if api.backups.count > 5 {
+                        Text("+ \(api.backups.count - 5) mais…")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 6)
+                    }
+                }
+            }
+
+            Divider()
+
+            // ── Actions ──────────────────────────────────────────────
+            VStack(spacing: 0) {
+                MenuBarActionButton(label: "Abrir BackupVault", icon: "macwindow") {
+                    openWindow(id: "main")
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+
+                MenuBarActionButton(label: "Ajustes…", icon: "gear") {
+                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+
+                Divider().padding(.horizontal, 10)
+
+                MenuBarActionButton(label: "Sair", icon: "power") {
+                    NSApplication.shared.terminate(nil)
+                }
+            }
+            .padding(.bottom, 4)
+        }
+        .frame(width: 290)
+        .onAppear {
+            Task {
+                await api.checkHealth()
+                await api.fetchBackups()
+            }
+        }
+    }
+}
+
+// MARK: - Mini Stat
+struct MiniStatView: View {
+    let value: String
+    let label: String
+    let icon:  String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.caption2)
+                .foregroundStyle(color)
+            Text(value)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Action Button
+struct MenuBarActionButton: View {
+    let label:  String
+    let icon:   String
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .frame(width: 16)
+                Text(label)
+                    .font(.subheadline)
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+}

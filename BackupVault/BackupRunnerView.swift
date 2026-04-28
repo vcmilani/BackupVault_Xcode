@@ -1,0 +1,207 @@
+import SwiftUI
+
+struct BackupRunnerSheet: View {
+    @EnvironmentObject var api: APIService
+    @Environment(\.dismiss) private var dismiss
+
+    let profile: BackupProfile
+    @StateObject private var runner: BackupRunner
+
+    init(profile: BackupProfile, api: APIService) {
+        self.profile = profile
+        self._runner = StateObject(wrappedValue: BackupRunner(api: api))
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+
+            // ── Header ───────────────────────────────────────────────
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.blue.opacity(0.12))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "arrow.up.to.line.compact")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.blue)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(profile.name)
+                        .font(.headline)
+                    Text("Label: \(profile.label)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                statusBadge
+            }
+            .padding(18)
+
+            Divider()
+
+            // ── Progress ─────────────────────────────────────────────
+            if runner.status == .running {
+                VStack(alignment: .leading, spacing: 8) {
+                    ProgressView(value: runner.progress)
+                        .progressViewStyle(.linear)
+                    HStack {
+                        if !runner.currentFile.isEmpty {
+                            Text(runner.currentFile)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Text("\(Int(runner.progress * 100))%")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                Divider()
+            }
+
+            // ── Stats row (when done) ────────────────────────────────
+            if runner.status == .done || runner.status == .failed {
+                HStack(spacing: 0) {
+                    MiniRunStat(value: "\(runner.stats.uploaded)",   label: "Enviados",    color: .blue)
+                    Divider()
+                    MiniRunStat(value: "\(runner.stats.registered)", label: "Registrados", color: .green)
+                    Divider()
+                    MiniRunStat(value: "\(runner.stats.ignored)",    label: "Ignorados",   color: .secondary)
+                    Divider()
+                    MiniRunStat(value: "\(runner.stats.deleted)",    label: "Deletados",   color: .orange)
+                    Divider()
+                    MiniRunStat(value: "\(runner.stats.errors)",     label: "Erros",       color: .red)
+                }
+                .frame(height: 56)
+                Divider()
+            }
+
+            // ── Log ──────────────────────────────────────────────────
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(runner.entries) { entry in
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(entry.kind.color)
+                                    .frame(width: 5, height: 5)
+                                Text(entry.text)
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(entry.kind.textColor)
+                                    .textSelection(.enabled)
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 1)
+                            .id(entry.id)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+                .frame(minHeight: 200)
+                .background(Color(NSColor.textBackgroundColor))
+                .onChange(of: runner.entries.count) { _ in
+                    if let last = runner.entries.last {
+                        withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
+                    }
+                }
+            }
+
+            Divider()
+
+            // ── Actions ──────────────────────────────────────────────
+            HStack {
+                if runner.status == .done || runner.status == .failed {
+                    Button("Fechar") { dismiss() }
+                }
+                Spacer()
+                if runner.status == .idle {
+                    Button("Cancelar") { dismiss() }
+                }
+                if runner.status == .running {
+                    Button("Parar") {
+                        runner.cancel()
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.orange)
+                }
+                Button(runner.status == .idle ? "Iniciar Backup" : "Executar Novamente") {
+                    Task { await runner.run(profile: profile) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(runner.status == .running)
+            }
+            .padding(16)
+        }
+        .frame(width: 560, height: 500)
+    }
+
+    // MARK: - Status Badge
+    var statusBadge: some View {
+        Group {
+            switch runner.status {
+            case .idle:
+                Text("Aguardando")
+                    .foregroundStyle(.secondary)
+            case .running:
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text("Executando…")
+                        .foregroundStyle(.blue)
+                }
+            case .done:
+                Label("Concluído", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            case .failed:
+                Label("Falhou", systemImage: "xmark.circle.fill")
+                    .foregroundStyle(.red)
+            case .cancelled:
+                Label("Cancelado", systemImage: "stop.circle.fill")
+                    .foregroundStyle(.orange)
+            }
+        }
+        .font(.subheadline.weight(.medium))
+    }
+}
+
+// MARK: - Mini Stat
+struct MiniRunStat: View {
+    let value: String
+    let label: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Log Kind Helpers
+private extension BackupRunner.LogEntry.Kind {
+    var color: Color {
+        switch self {
+        case .info:    return .secondary
+        case .success: return .green
+        case .warning: return .orange
+        case .error:   return .red
+        }
+    }
+    var textColor: Color {
+        switch self {
+        case .info:    return .primary
+        case .success: return .green
+        case .warning: return .orange
+        case .error:   return .red
+        }
+    }
+}
