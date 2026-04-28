@@ -89,7 +89,7 @@ struct MenuBarView: View {
                 HStack {
                     Image(systemName: "externaldrive.trianglebadge.exclamationmark")
                         .foregroundStyle(.secondary)
-                    Text(api.isConnected ? "Nenhum backup encontrado" : "menubar.no_connection")
+                    Text(api.isConnected ? LocalizedStringKey("menubar.no_backups") : LocalizedStringKey("menubar.no_connection"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -186,7 +186,7 @@ struct MiniStatView: View {
                 .font(.system(size: 15, weight: .bold, design: .rounded))
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
-            Text(label)
+            Text(LocalizedStringKey(label))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
