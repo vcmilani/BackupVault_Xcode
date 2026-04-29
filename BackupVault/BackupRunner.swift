@@ -187,7 +187,12 @@ final class BackupRunner: ObservableObject {
     }
 
     private func createVersion(label: String) async throws -> String {
-        let versionKey = ISO8601DateFormatter().string(from: Date())
+        // Format: 2026-04-26T14:30:00 — local time, no offset suffix
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone.current
+        let versionKey = formatter.string(from: Date())
         let body = try JSONSerialization.data(withJSONObject: ["version_key": versionKey])
         let req  = try api.buildRequest("/backups/\(label.urlSafe)/versions", method: "POST", body: body)
         let (data, _) = try await URLSession.shared.data(for: req)

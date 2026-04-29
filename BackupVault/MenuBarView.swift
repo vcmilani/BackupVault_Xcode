@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct MenuBarView: View {
-    @EnvironmentObject var api:   APIService
-    @EnvironmentObject var store: ConfigStore
+    @EnvironmentObject var api:      APIService
+    @EnvironmentObject var store:    ConfigStore
+    @EnvironmentObject var schedule: ScheduleManager
     @Environment(\.openWindow)   private var openWindow
     @Environment(\.openSettings) private var openSettings
 
@@ -56,6 +57,38 @@ struct MenuBarView: View {
             .padding(.vertical, 12)
 
             Divider()
+
+            // ── Active Schedule Progress ────────────────────────────
+            if let runner = schedule.activeRunner, runner.status == .running {
+                let profile = store.profiles.first { $0.id == schedule.currentProfileId }
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .foregroundStyle(.blue)
+                            .symbolEffect(.pulse)
+                        Text(profile?.name ?? "BackupVault")
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                        Spacer()
+                        Text("\(Int(runner.progress * 100))%")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    ProgressView(value: runner.progress)
+                        .progressViewStyle(.linear)
+                    if !runner.currentFile.isEmpty {
+                        Text(runner.currentFile)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color.blue.opacity(0.06))
+                Divider()
+            }
 
             // ── Stats Mini Row ───────────────────────────────────────
             HStack(spacing: 0) {

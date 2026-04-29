@@ -19,8 +19,8 @@ final class ScheduleManager: ObservableObject {
     private weak var api: APIService?
     private weak var store: ConfigStore?
     private weak var power: PowerMonitor?
+    @Published var activeRunner: BackupRunner?
     private var timer: Timer?
-    private var activeRunner: BackupRunner?
 
     init() {}
 
@@ -91,7 +91,7 @@ final class ScheduleManager: ObservableObject {
         currentProfileId = profile.id
 
         let runner = BackupRunner(api: api)
-        activeRunner = runner
+        self.activeRunner = runner
         await runner.run(profile: profile)
 
         // Persist last run
