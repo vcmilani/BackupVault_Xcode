@@ -56,6 +56,7 @@ final class BackupRunner: ObservableObject {
             log("Backup registrado no servidor", .success)
         } catch {
             log("Erro ao registrar backup: \(error.localizedDescription)", .error)
+            DockProgress.shared.update(progress: nil)
             status = .failed; return
         }
 
@@ -78,6 +79,7 @@ final class BackupRunner: ObservableObject {
         ) else {
             log("Não foi possível ler: \(source)", .error)
             await finalizeVersion(label: label, versionKey: versionKey, ok: false)
+            DockProgress.shared.update(progress: nil)
             status = .failed; return
         }
 
@@ -99,6 +101,7 @@ final class BackupRunner: ObservableObject {
         for (i, url) in fileURLs.enumerated() {
             progress = Double(i) / Double(max(fileURLs.count, 1))
             currentFile = url.lastPathComponent
+            DockProgress.shared.update(progress: progress)
 
             let serverPath: String
             if profile.prefix.isEmpty {
@@ -135,6 +138,7 @@ final class BackupRunner: ObservableObject {
             progress    = 0
             currentFile = ""
             status      = .cancelled
+            DockProgress.shared.update(progress: nil)
             log("Backup cancelado — versão marcada como failed.", .warning)
             return
         }
@@ -155,6 +159,8 @@ final class BackupRunner: ObservableObject {
         progress    = 1.0
         currentFile = ""
         status      = .done
+        DockProgress.shared.update(progress: nil)
+        DockProgress.shared.bounce()
         log("─────────────────────────────────────", .info)
         log("Enviados: \(stats.uploaded)  Registrados: \(stats.registered)  Ignorados: \(stats.ignored)  Deletados: \(stats.deleted)  Erros: \(stats.errors)", .success)
     }

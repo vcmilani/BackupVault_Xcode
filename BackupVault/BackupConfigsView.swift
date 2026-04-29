@@ -70,7 +70,7 @@ struct BackupConfigsView: View {
                                     .contextMenu {
                                         Button(L("mybackups.edit")) { editing = profile }
                                         Divider()
-                                        Button("Excluir configuração", role: .destructive) {
+                                        Button("mybackups.delete_config", role: .destructive) {
                                             selected = profile; showDelete = true
                                         }
                                         Button("mybackups.delete_server", role: .destructive) {
@@ -112,8 +112,8 @@ struct BackupConfigsView: View {
                 .environmentObject(store)
         }
         .alert("Excluir backup do servidor?", isPresented: $showDeleteBackup) {
-            Button("Cancelar", role: .cancel) {}
-            Button("Excluir do Servidor", role: .destructive) {
+            Button("common.cancel", role: .cancel) {}
+            Button("mybackups.delete_server", role: .destructive) {
                 guard let label = selected?.label else { return }
                 Task {
                     do {
@@ -140,8 +140,8 @@ struct BackupConfigsView: View {
             }
         }
         .alert("Excluir configuração?", isPresented: $showDelete) {
-            Button("Cancelar", role: .cancel) {}
-            Button("Excluir",  role: .destructive) {
+            Button("common.cancel", role: .cancel) {}
+            Button("common.delete",  role: .destructive) {
                 if let p = selected { store.delete(p); selected = nil }
             }
         } message: {
@@ -222,6 +222,24 @@ struct ProfileDetailView: View {
                 Divider()
 
                 // Grid of info cards
+                if profile.schedule.enabled {
+                    HStack(spacing: 8) {
+                        Image(systemName: "clock.arrow.circlepath").foregroundStyle(.blue)
+                        Text(LocalizedStringKey(scheduleSummary(profile.schedule)))
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        if let last = profile.lastRun {
+                            Text("schedule.last_run").font(.caption).foregroundStyle(.secondary)
+                            Text(last, style: .relative)
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.blue.opacity(0.25), lineWidth: 1))
+                }
+
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
                     ProfileInfoCard(title: "Pasta de Origem", icon: "folder.fill", iconColor: .blue) {
                         Text(profile.sourcePath.isEmpty ? "Não configurado" : profile.sourcePath)
@@ -241,7 +259,7 @@ struct ProfileDetailView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     ProfileInfoCard(title: "Prefixo no Servidor", icon: "folder.badge.questionmark", iconColor: .orange) {
-                        Text(profile.prefix.isEmpty ? "Nenhum" : profile.prefix)
+                        Text(profile.prefix.isEmpty ? L("common.none") : profile.prefix)
                             .font(.body.monospaced())
                             .foregroundStyle(profile.prefix.isEmpty ? .secondary : .primary)
                     }
@@ -268,6 +286,16 @@ struct ProfileDetailView: View {
         }
         .sheet(isPresented: $showRunner) {
             BackupRunnerSheet(profile: profile, api: api)
+        }
+    }
+
+    func scheduleSummary(_ s: BackupSchedule) -> String {
+        switch s.frequency {
+        case .off:    return "schedule.summary.off"
+        case .hourly: return "schedule.summary.hourly"
+        case .custom: return "schedule.summary.custom"
+        case .daily:  return "schedule.summary.daily"
+        case .weekly: return "schedule.summary.weekly"
         }
     }
 
@@ -350,12 +378,12 @@ struct ProfileEditorSheet: View {
         VStack(spacing: 0) {
             // Sheet toolbar
             HStack {
-                Button("Cancelar") { dismiss() }
+                Button("common.cancel") { dismiss() }
                 Spacer()
-                Text(profile == nil ? "Nova Configuração" : "Editar Configuração")
+                Text(profile == nil ? LocalizedStringKey("editor.new") : LocalizedStringKey("editor.edit"))
                     .font(.headline)
                 Spacer()
-                Button("Salvar") { onSave(draft); dismiss() }
+                Button("common.save") { onSave(draft); dismiss() }
                     .buttonStyle(.borderedProminent)
                     .disabled(!canSave)
             }
@@ -365,9 +393,10 @@ struct ProfileEditorSheet: View {
 
             // Tab picker
             Picker("", selection: $tab) {
-                Label("Geral",      systemImage: "info.circle").tag(0)
-                Label("Servidor",   systemImage: "network").tag(1)
-                Label("Exclusões",  systemImage: "xmark.circle").tag(2)
+                Label("editor.tab.general",   systemImage: "info.circle").tag(0)
+                Label("editor.tab.server",    systemImage: "network").tag(1)
+                Label("editor.tab.schedule",  systemImage: "clock").tag(2)
+                Label("editor.tab.excludes",  systemImage: "xmark.circle").tag(3)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -413,7 +442,7 @@ struct ProfileEditorSheet: View {
                         }
                         Section("Performance") {
                             HStack {
-                                Text("Workers")
+                                Text("editor.workers_label")
                                 Spacer()
                                 TextField("4", value: $draft.workers, format: .number)
                                     .textFieldStyle(.roundedBorder)
@@ -430,6 +459,8 @@ struct ProfileEditorSheet: View {
                         }
                     }
                     .formStyle(.grouped)
+                } else if tab == 2 {
+                    ScheduleEditor(schedule: $draft.schedule)
                 } else {
                     ExcludesEditor(excludes: $draft.excludes)
                 }
@@ -446,13 +477,11 @@ struct ProfileEditorSheet: View {
         panel.canCreateDirectories = false
         panel.title = "Selecione a pasta de origem"
         panel.prompt = "Selecionar"
-        panel.level = .modalPanel
-        DispatchQueue.main.async {
-            NSApp.activate(ignoringOtherApps: true)
-            let response = panel.runModal()
-            if response == .OK, let url = panel.url {
-                draft.sourcePath = url.path
-            }
+        NSApp.activate(ignoringOtherApps: true)
+        // begin (non-blocking) lets SwiftUI process state changes properly
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            draft.sourcePath = url.path
         }
     }
 
@@ -476,7 +505,7 @@ struct ExcludesEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Pastas e arquivos excluídos").font(.headline)
+                Text("editor.excludes.title").font(.headline)
                 Spacer()
                 Text("\(local.count) itens")
                     .font(.caption).foregroundStyle(.secondary)
@@ -488,14 +517,14 @@ struct ExcludesEditor: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.body.monospaced())
                     .onSubmit(add)
-                Button("Adicionar", action: add)
+                Button("editor.excludes.add_btn", action: add)
                     .disabled(newExclude.trimmingCharacters(in: .whitespaces).isEmpty)
             }
             .padding(16)
             Divider()
             if local.isEmpty {
                 Spacer()
-                Text("Nenhuma exclusão")
+                Text("editor.excludes.none")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                 Spacer()

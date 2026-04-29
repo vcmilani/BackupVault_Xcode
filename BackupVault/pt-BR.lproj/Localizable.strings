@@ -236,3 +236,69 @@
 "general.versions" = "versões";
 "general.files" = "arquivos";
 "general.storage" = "storage";
+
+/* Additional keys */
+"cleanup.preview_title" = "Pré-visualização";
+"cleanup.start_running" = "Executando…";
+"cleanup.start_btn" = "Iniciar Limpeza";
+"cleanup.removed_total" = "Total de %d versão(ões) serão removidas desta operação.";
+"cleanup.removed_none" = "Nenhuma versão será removida com este critério.";
+"cleanup.keep_desc_full" = "Versões além das %d mais recentes serão permanentemente removidas. Arquivos físicos sem referência são automaticamente deletados do storage.";
+"common.cancel" = "Cancelar";
+"common.delete" = "Excluir";
+"common.save" = "Salvar";
+"common.none" = "Nenhum";
+"common.connected" = "Conectado";
+"common.disconnected" = "Desconectado";
+"settings.server" = "Servidor";
+"settings.about" = "Sobre";
+"settings.save_button" = "Salvar e Testar Conexão";
+"app.refresh_backups" = "Atualizar Backups";
+"app.check_connection" = "Verificar Conexão";
+"backups.delete_btn" = "Excluir";
+
+/* General Settings (v1.1) */
+"settings.general" = "Geral";
+"settings.startup" = "Inicialização";
+"settings.start_on_login" = "Iniciar com o macOS";
+"settings.requires_approval" = "Requer aprovação nas Configurações do Sistema";
+"settings.open_settings" = "Abrir Configurações";
+"settings.system_status" = "Status do Sistema";
+"settings.network" = "Rede";
+"settings.power" = "Energia";
+"settings.backoff" = "Reconexão";
+
+/* Schedule (v1.2) */
+"editor.tab.schedule" = "Agendamento";
+"schedule.frequency" = "Frequência";
+"schedule.run_every" = "Executar a cada";
+"schedule.freq.off" = "Desativado";
+"schedule.freq.hourly" = "A cada hora";
+"schedule.freq.daily" = "Diariamente";
+"schedule.freq.weekly" = "Semanalmente";
+"schedule.freq.custom" = "Personalizado";
+"schedule.time_of_day" = "Horário";
+"schedule.hour" = "Hora";
+"schedule.minute" = "Minuto";
+"schedule.day_of_week" = "Dia da Semana";
+"schedule.weekday" = "Dia";
+"schedule.sun" = "Domingo";
+"schedule.mon" = "Segunda";
+"schedule.tue" = "Terça";
+"schedule.wed" = "Quarta";
+"schedule.thu" = "Quinta";
+"schedule.fri" = "Sexta";
+"schedule.sat" = "Sábado";
+"schedule.interval" = "Intervalo";
+"schedule.every_n_minutes" = "A cada N minutos";
+"schedule.custom_hint" = "Entre 5 e 10080 minutos (1 semana).";
+"schedule.next_run" = "Próxima Execução";
+"schedule.last_run" = "Última:";
+"schedule.summary.off" = "Agendamento desativado";
+"schedule.summary.hourly" = "Executa a cada hora";
+"schedule.summary.custom" = "Executa em intervalo personalizado";
+"schedule.summary.daily" = "Executa diariamente";
+"schedule.summary.weekly" = "Executa semanalmente";
+"schedule.pause_on_battery" = "Pausar agendamento na bateria";
+"schedule.min_battery" = "Bateria mínima para executar";
+"settings.schedule" = "Agendamento";

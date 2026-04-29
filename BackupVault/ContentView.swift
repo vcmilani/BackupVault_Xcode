@@ -60,7 +60,7 @@ struct SidebarView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("BackupVault")
                         .font(.headline)
-                    Text("v1.0")
+                    Text("v2.0")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

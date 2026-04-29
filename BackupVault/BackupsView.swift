@@ -31,8 +31,8 @@ struct BackupsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .alert("Excluir versão?", isPresented: $showDeleteVersion, presenting: pendingDelete) { ver in
-            Button("Cancelar", role: .cancel) {}
-            Button("Excluir", role: .destructive) {
+            Button("common.cancel", role: .cancel) {}
+            Button("backups.delete_btn", role: .destructive) {
                 Task {
                     try? await api.deleteVersion(label: selectedBackup!.label, versionKey: ver.versionKey)
                     if let backup = selectedBackup { await loadVersions(for: backup) }

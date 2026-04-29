@@ -236,3 +236,69 @@
 "general.versions" = "versions";
 "general.files" = "files";
 "general.storage" = "storage";
+
+/* Additional keys */
+"cleanup.preview_title" = "Preview";
+"cleanup.start_running" = "Running…";
+"cleanup.start_btn" = "Start Cleanup";
+"cleanup.removed_total" = "%d version(s) will be removed by this operation.";
+"cleanup.removed_none" = "No versions will be removed with this criteria.";
+"cleanup.keep_desc_full" = "Versions beyond the %d most recent will be permanently removed. Physical files with no references are automatically deleted from storage.";
+"common.cancel" = "Cancel";
+"common.delete" = "Delete";
+"common.save" = "Save";
+"common.none" = "None";
+"common.connected" = "Connected";
+"common.disconnected" = "Disconnected";
+"settings.server" = "Server";
+"settings.about" = "About";
+"settings.save_button" = "Save and Test Connection";
+"app.refresh_backups" = "Refresh Backups";
+"app.check_connection" = "Check Connection";
+"backups.delete_btn" = "Delete";
+
+/* General Settings (v1.1) */
+"settings.general" = "General";
+"settings.startup" = "Startup";
+"settings.start_on_login" = "Start with macOS";
+"settings.requires_approval" = "Requires approval in System Settings";
+"settings.open_settings" = "Open Settings";
+"settings.system_status" = "System Status";
+"settings.network" = "Network";
+"settings.power" = "Power";
+"settings.backoff" = "Reconnect";
+
+/* Schedule (v1.2) */
+"editor.tab.schedule" = "Schedule";
+"schedule.frequency" = "Frequency";
+"schedule.run_every" = "Run every";
+"schedule.freq.off" = "Disabled";
+"schedule.freq.hourly" = "Every hour";
+"schedule.freq.daily" = "Daily";
+"schedule.freq.weekly" = "Weekly";
+"schedule.freq.custom" = "Custom";
+"schedule.time_of_day" = "Time of Day";
+"schedule.hour" = "Hour";
+"schedule.minute" = "Minute";
+"schedule.day_of_week" = "Day of the Week";
+"schedule.weekday" = "Weekday";
+"schedule.sun" = "Sunday";
+"schedule.mon" = "Monday";
+"schedule.tue" = "Tuesday";
+"schedule.wed" = "Wednesday";
+"schedule.thu" = "Thursday";
+"schedule.fri" = "Friday";
+"schedule.sat" = "Saturday";
+"schedule.interval" = "Interval";
+"schedule.every_n_minutes" = "Every N minutes";
+"schedule.custom_hint" = "Between 5 and 10080 minutes (1 week).";
+"schedule.next_run" = "Next Run";
+"schedule.last_run" = "Last:";
+"schedule.summary.off" = "Schedule disabled";
+"schedule.summary.hourly" = "Runs every hour";
+"schedule.summary.custom" = "Runs at custom interval";
+"schedule.summary.daily" = "Runs daily";
+"schedule.summary.weekly" = "Runs weekly";
+"schedule.pause_on_battery" = "Pause schedule on battery";
+"schedule.min_battery" = "Minimum battery to run";
+"settings.schedule" = "Schedule";

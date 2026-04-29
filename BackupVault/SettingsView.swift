@@ -2,6 +2,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var api: APIService
+    @StateObject private var loginItem = LoginItemManager()
+    @StateObject private var power     = PowerMonitor()
     @State private var isTesting = false
     @State private var testMsg: String?
     @State private var testOK   = false
@@ -9,12 +11,84 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            serverTab.tabItem { Label("Servidor", systemImage: "network") }
-            aboutTab.tabItem  { Label("Sobre",    systemImage: "info.circle") }
+            generalTab.tabItem { Label("settings.general", systemImage: "gearshape") }
+            serverTab.tabItem  { Label("settings.server",  systemImage: "network") }
+            aboutTab.tabItem   { Label("settings.about",   systemImage: "info.circle") }
         }
         .padding(6)
-        .frame(width: 520)
+        .frame(width: 540)
         .fixedSize()
+    }
+
+    // MARK: - General Tab
+    var generalTab: some View {
+        Form {
+            Section("settings.startup") {
+                Toggle("settings.start_on_login", isOn: Binding(
+                    get: { loginItem.isEnabled },
+                    set: { loginItem.toggle($0) }
+                ))
+                if loginItem.requiresApproval {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text("settings.requires_approval")
+                            .font(.caption)
+                        Spacer()
+                        Button("settings.open_settings") {
+                            loginItem.openSettings()
+                        }
+                        .controlSize(.small)
+                    }
+                }
+                if let err = loginItem.lastError {
+                    Text(err).font(.caption).foregroundStyle(.red)
+                }
+            }
+            Section("settings.system_status") {
+                LabeledContent {
+                    HStack(spacing: 6) {
+                        Image(systemName: power.isOnLocalNetwork
+                              ? "wifi" : "wifi.slash")
+                            .foregroundStyle(power.isOnLocalNetwork ? .green : .secondary)
+                        Text(power.isOnLocalNetwork
+                             ? (power.networkInterface.isEmpty ? "online" : power.networkInterface)
+                             : "offline")
+                    }
+                    .font(.subheadline)
+                } label: {
+                    Text("settings.network")
+                }
+                LabeledContent {
+                    HStack(spacing: 6) {
+                        Image(systemName: power.powerSource == .ac
+                              ? "bolt.fill" : "battery.100")
+                            .foregroundStyle(power.powerSource == .ac ? .green : .blue)
+                        Text(powerSourceLabel)
+                    }
+                    .font(.subheadline)
+                } label: {
+                    Text("settings.power")
+                }
+                if api.backoff.failureCount > 0 {
+                    LabeledContent("settings.backoff") {
+                        Text(api.backoff.humanReadable)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding(6)
+    }
+
+    var powerSourceLabel: String {
+        switch power.powerSource {
+        case .ac:      return "AC \(power.batteryPercent)%"
+        case .battery: return "Bateria \(power.batteryPercent)%"
+        case .unknown: return "—"
+        }
     }
 
     // MARK: - Server Tab
@@ -57,7 +131,7 @@ struct SettingsView: View {
                                 .fill(api.isConnected ? Color.green : Color.red)
                                 .frame(width: 8, height: 8)
                         }
-                        Text(api.isConnected ? "Conectado" : (api.connectionError ?? "Desconectado"))
+                        Text(api.isConnected ? L("common.connected") : (api.connectionError ?? L("common.disconnected")))
                             .foregroundStyle(api.isConnected ? .green : .red)
                             .font(.subheadline)
                     }
@@ -67,7 +141,7 @@ struct SettingsView: View {
             Section {
                 HStack {
                     Spacer()
-                    Button("Salvar e Testar Conexão") {
+                    Button("settings.save_button") {
                         api.saveSettings()
                         isTesting = true
                         testMsg = nil
@@ -115,7 +189,7 @@ struct SettingsView: View {
     var aboutTab: some View {
         Form {
             Section("BackupVault para macOS") {
-                LabeledContent("Versão", value: "1.0.0")
+                LabeledContent("settings.about.version", value: "2.0.0")
                 LabeledContent("Mínimo macOS", value: "14.0 (Sonoma)")
                 LabeledContent("Servidor", value: "FastAPI + SQLite + SHA-256")
             }

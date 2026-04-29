@@ -2,8 +2,10 @@ import SwiftUI
 
 @main
 struct BackupVaultApp: App {
-    @StateObject private var api    = APIService()
-    @StateObject private var store  = ConfigStore()
+    @StateObject private var api      = APIService()
+    @StateObject private var store    = ConfigStore()
+    @StateObject private var power    = PowerMonitor()
+    @StateObject private var schedule = ScheduleManager()
 
     var body: some Scene {
 
@@ -12,9 +14,13 @@ struct BackupVaultApp: App {
             ContentView()
                 .environmentObject(api)
                 .environmentObject(store)
+                .environmentObject(power)
+                .environmentObject(schedule)
                 .frame(minWidth: 960, idealWidth: 1160,
                        minHeight: 640, idealHeight: 780)
                 .onAppear {
+                    schedule.bind(api: api, store: store, power: power)
+                    schedule.start()
                     Task {
                         await api.checkHealth()
                         await api.fetchBackups()
@@ -26,12 +32,12 @@ struct BackupVaultApp: App {
         .defaultSize(width: 1160, height: 760)
         .commands {
             CommandGroup(after: .newItem) {
-                Button("Atualizar Backups") {
+                Button("app.refresh_backups") {
                     Task { await api.fetchBackups() }
                 }
                 .keyboardShortcut("r", modifiers: .command)
 
-                Button("Verificar Conexão") {
+                Button("app.check_connection") {
                     Task { await api.checkHealth() }
                 }
                 .keyboardShortcut("k", modifiers: [.command, .shift])
@@ -43,6 +49,8 @@ struct BackupVaultApp: App {
             MenuBarView()
                 .environmentObject(api)
                 .environmentObject(store)
+                .environmentObject(power)
+                .environmentObject(schedule)
         } label: {
             let img = api.isConnected
                 ? "externaldrive.badge.checkmark"
@@ -57,6 +65,8 @@ struct BackupVaultApp: App {
             SettingsView()
                 .environmentObject(api)
                 .environmentObject(store)
+                .environmentObject(power)
+                .environmentObject(schedule)
         }
     }
 }

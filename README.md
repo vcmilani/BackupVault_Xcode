@@ -1,223 +1,261 @@
 # BackupVault — macOS Client
 
-Cliente macOS nativo em SwiftUI para o servidor [backup_files](https://github.com/vcmilani/backup_files).
+Native macOS SwiftUI client for the [backup_files](https://github.com/vcmilani/backup_files) self-hosted backup server.
 
 ---
 
-## Requisitos
+## Requirements
 
-| Item | Versão mínima |
-|------|--------------|
+| Item | Minimum |
+|------|---------|
 | macOS | 14.0 (Sonoma) |
 | Xcode | 15.0 |
 | Swift | 5.9 |
-| Servidor | backup_files v2.1+ |
+| Server | backup_files v2.1+ |
 
 ---
 
-## Estrutura do projeto
+## Project Structure
 
 ```
 BackupVault_Xcode/
 ├── BackupVault.xcodeproj/
 │   ├── project.pbxproj
-│   └── xcshareddata/xcschemes/
-│       └── BackupVault.xcscheme
+│   └── xcshareddata/xcschemes/BackupVault.xcscheme
 └── BackupVault/
-    ├── BackupVaultApp.swift       # Entry point · MenuBarExtra · Settings scene
-    ├── Models.swift               # Modelos do contrato v2.1 (BackupSummary, VersionInfo, FileInfo…)
-    ├── APIService.swift           # Camada de rede — endpoints do FastAPI
-    ├── ConfigStore.swift          # Persistência local de perfis (UserDefaults)
-    ├── ContentView.swift          # Janela principal · sidebar fixa
-    ├── DashboardView.swift        # Estatísticas globais e explicação do sistema
-    ├── BackupsView.swift          # Navegador backups → versões → arquivos
-    ├── BackupConfigsView.swift    # CRUD de perfis · ExcludesEditor isolado
-    ├── BackupRunner.swift         # Engine de execução · upload binário com headers
-    ├── BackupRunnerView.swift     # Sheet de execução individual com log e cancel
-    ├── BackupQueue.swift          # Engine de fila (vários perfis em sequência)
-    ├── BackupQueueView.swift      # Sheet de fila com seleção e progresso
-    ├── CleanupView.swift          # Limpeza de versões antigas no servidor
-    ├── SettingsView.swift         # URL do servidor · API Key · teste de conexão
-    ├── MenuBarView.swift          # Painel compacto da barra de menu
-    ├── PlaceholderView.swift      # Substituto de ContentUnavailableView
+    │
+    ├── # Entry & Core
+    ├── BackupVaultApp.swift       # App entry · MenuBarExtra · Settings scene
+    ├── ContentView.swift          # Main window · fixed sidebar · NavigationSplitView
+    ├── Models.swift               # All data models (v2.1 API contract + BackupSchedule)
+    ├── APIService.swift           # Network layer · backoff-aware checkHealth
+    ├── ConfigStore.swift          # Local profile persistence (UserDefaults)
+    │
+    ├── # Views
+    ├── DashboardView.swift        # Global stats · system explanation
+    ├── BackupsView.swift          # 3-panel browser: backups → versions → files
+    ├── BackupConfigsView.swift    # Profile CRUD · ExcludesEditor · ScheduleEditor
+    ├── CleanupView.swift          # Old version cleanup with preview
+    ├── SettingsView.swift         # Server URL · API Key · startup · system status
+    ├── MenuBarView.swift          # Compact menu bar panel
+    ├── PlaceholderView.swift      # ContentUnavailableView substitute (macOS 13/14)
+    │
+    ├── # Backup Execution
+    ├── BackupRunner.swift         # Single backup engine · binary upload · dock progress
+    ├── BackupRunnerView.swift     # Execution sheet with live log and cancel
+    ├── BackupQueue.swift          # Sequential queue engine
+    ├── BackupQueueView.swift      # Queue sheet with selection UI and per-item progress
+    │
+    ├── # Scheduling & System
+    ├── ScheduleManager.swift      # Timer-based scheduler · respects power/network
+    ├── ScheduleEditor.swift       # Schedule editor (Hourly/Daily/Weekly/Custom)
+    ├── LoginItemManager.swift     # SMAppService wrapper for auto-start
+    ├── PowerMonitor.swift         # Battery + network interface monitoring
+    ├── BackoffPolicy.swift        # Exponential backoff for failed connections
+    ├── DockProgress.swift         # Dock tile progress bar during backups
+    │
+    ├── # Utilities
+    ├── L10n.swift                 # L("key") helper for non-view contexts
+    │
+    ├── # Localization
+    ├── en.lproj/Localizable.strings
+    ├── pt-BR.lproj/Localizable.strings
+    │
+    ├── # Resources
     ├── Info.plist                 # ATS · NSLocalNetworkUsageDescription
     ├── BackupVault.entitlements   # Network client · file access
-    ├── AppIcon.svg                # Ícone vetorial alta resolução
-    └── Assets.xcassets/
-        └── AppIcon.appiconset/
+    ├── AppIcon.svg                # High-res vector app icon
+    └── Assets.xcassets/AppIcon.appiconset/
 ```
 
 ---
 
-## Configuração antes de rodar
+## Setup
 
-1. Abra `BackupVault.xcodeproj` no Xcode
-2. Em **Signing & Capabilities**, selecione seu Team
-3. (Opcional) Troque o `PRODUCT_BUNDLE_IDENTIFIER` em Build Settings
-4. Em **Assets.xcassets → AppIcon**, ative *Single Size* e arraste um PNG 1024×1024 gerado a partir do `AppIcon.svg`
-5. ⌘R para rodar
+1. Open `BackupVault.xcodeproj` in Xcode
+2. In **Signing & Capabilities**, select your Team
+3. In **Assets.xcassets → AppIcon**, enable *Single Size* and drag a 1024×1024 PNG generated from `AppIcon.svg`
+4. ⌘R to run
+
+**Bundle ID:** `com.vcm.backupvault.app`
 
 ---
 
-## Funcionalidades
+## Features
 
 ### Dashboard
-- Cards com totais: backups, versões, arquivos e storage
-- Lista de backups ativos com tamanho e última versão
-- Painel explicativo: deduplicação SHA-256, versionamento, isolamento por label, arquivos deletados
-- Banner de alerta quando o servidor está inacessível
+- Cards: total backups, versions, files, and storage
+- List of active backups with size and last version date
+- Explanation panel: SHA-256 deduplication, versioning, label isolation, deleted files tracking
+- Alert banner when the server is unreachable
 
-### Backups (navegador do servidor)
-- Layout em 3 painéis com `HStack` puro (sem espaços fantasma)
-- Lista de backups → versões → arquivos
-- Filtro por nome de backup e nome de arquivo
-- Tabela de arquivos com SHA-256, status (active/deleted) e tamanho
-- Filtro `include_deleted=true` para ver arquivos removidos do cliente
-- Excluir versão individual (menu de contexto)
+### Backups (Server Browser)
+- 3-panel `HStack` layout: backups → versions → files
+- Filter by backup label and file name
+- File table with SHA-256, status (active/deleted), size
+- `include_deleted=true` to show removed files
+- Delete individual version via context menu
 
-### Meus Backups (perfis locais)
-- Cria e gerencia múltiplos perfis localmente
-- Cada perfil: nome, label, pasta, servidor (override), workers, prefixo, exclusões
-- Seletor nativo de pasta (`NSOpenPanel`)
-- Editor em 3 abas com `Picker` segmentado
-- `ExcludesEditor` isolado em view própria com `@Binding`
-- Executar backup individual (sheet com progresso e log)
-- Executar fila com seleção de múltiplos perfis
-- Excluir backup do servidor (menu de contexto)
-- Preview do comando Python equivalente
+### My Backups (Local Profiles)
+- Create and manage local backup profiles
+- Each profile: name, label, source folder, server override, workers, prefix, excludes, schedule
+- Native folder picker (`NSOpenPanel` via `panel.begin`)
+- 4-tab editor: General / Server / Schedule / Exclusions
+- Run individual backup (sheet with live log)
+- Run queue with selection UI and per-item progress
+- Delete backup from server (context menu)
+- Python equivalent command preview
 
-### Fila de Execução
-- Lista todos os perfis ativos com label e pasta definidos
-- Pré-seleciona todos automaticamente
-- Toda a linha clicável para selecionar/desselecionar
-- Botão "Selecionar Todos" para reset
-- Contador dinâmico no botão "Iniciar Fila (N)"
-- Execução sequencial com progresso geral + por item
-- Item atual destacado com barra de progresso e nome do arquivo
-- Botão "Parar Fila" cancela tudo a partir do próximo arquivo
-- Botão "Executar Novamente" após conclusão
+### Scheduling (v2.0)
+- 5 modes: **Disabled / Hourly / Daily / Weekly / Custom (minutes)**
+- Daily and Weekly respect a configured time-of-day
+- Weekly also respects day of week
+- Custom supports 5–10080 minutes
+- `ScheduleManager` checks every 30s with a `Timer`
+- Respects network reachability, battery state, and active backup lock
+- Shows next run date in editor and last run time in detail view
 
-### Limpeza
-- Modo: todos os backups ou label específico
-- Stepper para definir versões a manter (padrão: 5)
-- Pré-visualização por label antes de executar
-- Confirmação obrigatória (operação irreversível)
-- Resultado detalhado: versões removidas e arquivos liberados
+### Cleanup
+- Mode: all backups or specific label
+- Keep N most recent versions (default: 5)
+- Per-label preview table before executing
+- Mandatory confirmation alert
+- Detailed results: versions removed + storage files freed
 
-### Barra de Menu (`MenuBarExtra`)
-- Ícone com indicador visual de conexão
-- Painel compacto: status, mini-stats, 5 backups recentes
-- Atalho rápido para janela principal e Ajustes
+### Menu Bar (`MenuBarExtra`)
+- Connection indicator icon
+- Compact panel: status, 3 mini-stats, 5 recent backups
+- Quick actions: Open BackupVault · Settings · Quit
 
-### Ajustes
-- URL do servidor e API Key com persistência em `UserDefaults`
-- Teste de conexão com feedback inline
-- Migração automática do bundle ID antigo
-- Detecção amigável do erro -1009 (rede local bloqueada)
-- Links para Swagger UI, Dashboard Web e GitHub
+### Settings
+- **General tab:** Login Item (start with macOS via `SMAppService`), network status, power source, backoff info
+- **Server tab:** Server URL and API Key, test connection, tips
+- **About tab:** version, links to Swagger UI and GitHub
 
 ---
 
-## Integração com o servidor (contrato v2.1)
+## v2.0 New Features
 
-### Endpoints utilizados
+| Feature | Details |
+|---------|---------|
+| **Auto-start** | `SMAppService.mainApp` — toggle in Settings → General |
+| **Backup scheduling** | Hourly / Daily / Weekly / Custom with time-of-day control |
+| **Smart energy management** | Pauses schedule on battery, respects minimum battery %, skips when off local network |
+| **Exponential backoff** | 30s → 1m → 5m → 15m → 30m → 1h after consecutive failures; resets on success |
+| **Dock progress bar** | Custom `NSDockTile` overlay showing progress bar + percentage badge |
+| **Queue badge** | Dock shows "2/5" badge during queue execution |
+| **Completion bounce** | Dock icon bounces on backup completion |
 
-| Método | Endpoint | Uso |
-|--------|----------|-----|
-| `GET` | `/health` | Verificar conexão |
-| `GET` | `/backups` | Listar backups com `version_count`, `file_count`, `total_size_bytes` |
-| `GET` | `/backups/{label}/versions` | Listar versões com `file_count`, `deleted_count`, `total_size_bytes` |
-| `GET` | `/files?backup_label=&version_key=&include_deleted=true` | Listar arquivos da versão |
-| `POST` | `/backups` | Criar backup com `label` e `client_name` |
-| `POST` | `/backups/{label}/versions` | Criar versão com `version_key` ISO 8601 |
-| `POST` | `/check` | Verificar se conteúdo já existe (`needs_upload`, `content_exists`) |
-| `POST` | `/upload` | Enviar arquivo (binário) ou registrar (header `X-Content-Sha256`) |
-| `POST` | `/sync` | Marcar arquivos ausentes como deletados (`existing_paths`) |
-| `PATCH` | `/backups/{label}/versions/{key}` | Finalizar versão (`status: done` ou `failed`) |
-| `POST` | `/backups/{label}/cleanup` | Remover versões antigas (`keep`) |
-| `DELETE` | `/backups/{label}/versions/{key}` | Excluir versão |
-| `DELETE` | `/backups/{label}` | Excluir backup completo do servidor |
+---
 
-### Upload — protocolo binário com headers
+## API Contract (v2.1)
 
-Quando `content_exists = false` (conteúdo novo):
+### Endpoints
+
+| Method | Endpoint | Usage |
+|--------|----------|-------|
+| `GET` | `/health` | Check connection (backoff-aware) |
+| `GET` | `/backups` | List backups with `version_count`, `file_count`, `total_size_bytes` |
+| `GET` | `/backups/{label}/versions` | List versions |
+| `GET` | `/files?backup_label=&version_key=&include_deleted=true` | List files |
+| `POST` | `/backups` | Create backup (`label`, `client_name`) |
+| `POST` | `/backups/{label}/versions` | Create version (`version_key`) |
+| `POST` | `/check` | Check file: returns `needs_upload`, `content_exists` |
+| `POST` | `/upload` | Upload file (binary) or register (header only) |
+| `POST` | `/sync` | Mark absent files as deleted (`existing_paths`) |
+| `PATCH` | `/backups/{label}/versions/{key}` | Finalize version (`status: done/failed`) |
+| `POST` | `/backups/{label}/cleanup` | Remove old versions (`keep`) |
+| `DELETE` | `/backups/{label}/versions/{key}` | Delete version |
+| `DELETE` | `/backups/{label}` | Delete entire backup |
+
+### Upload Protocol
+
+**New content** (`content_exists = false`):
 ```
 POST /upload
 Content-Type: application/octet-stream
-X-Backup-Label:   meu-backup
-X-Version-Key:    2026-04-26T15:30:00Z
-X-Original-Path:  <path em base64>
-X-Mtime:          1714145400.0
+X-Backup-Label:   <label>
+X-Version-Key:    <version_key>
+X-Original-Path:  <path base64>
+X-Mtime:          <epoch float>
 
-<bytes do arquivo>
+<raw file bytes>
 ```
 
-Quando `content_exists = true` (conteúdo já no storage, só registrar):
+**Already in storage** (`content_exists = true`):
 ```
 POST /upload
-X-Backup-Label:    meu-backup
-X-Version-Key:     2026-04-26T15:30:00Z
-X-Original-Path:   <path em base64>
-X-Content-Sha256:  <hash>
-X-Mtime:           1714145400.0
-(sem body)
+X-Backup-Label:    <label>
+X-Version-Key:     <version_key>
+X-Original-Path:   <path base64>
+X-Content-Sha256:  <sha256>
+X-Mtime:           <epoch float>
+(no body)
 ```
 
-Autenticação via header `X-API-Key` quando configurado.
+---
+
+## Local Persistence
+
+| Key | Content |
+|-----|---------|
+| `serverURL` | Server URL |
+| `apiKey` | API Key |
+| `backupProfiles_v1` | JSON array of `BackupProfile` (includes `BackupSchedule`, `lastRun`) |
+| `schedule.pauseOnBattery` | Bool — pause when on battery |
+| `schedule.minBatteryPercent` | Int — minimum battery level to run |
 
 ---
 
-## Persistência local
+## macOS Permissions
 
-| Dado | Chave UserDefaults |
-|------|--------------------|
-| URL do servidor | `serverURL` |
-| API Key | `apiKey` |
-| Perfis de backup | `backupProfiles_v1` |
+Declared in `Info.plist`:
+- `NSLocalNetworkUsageDescription` — required on macOS 15+ for local network access
+- `NSAppTransportSecurity` with `NSAllowsLocalNetworking` — allows HTTP on local IPs
 
-Migração automática do bundle ID antigo (`com.backupvault.app` → `com.vcm.backupvault.app`) na primeira execução.
+Declared in `.entitlements`:
+- `com.apple.security.network.client`
+- `com.apple.security.files.user-selected.read-only`
+- Sandbox: **disabled** (required for `SMAppService` and `NSOpenPanel`)
 
----
-
-## Permissões macOS
-
-O app declara no `Info.plist`:
-
-- **`NSLocalNetworkUsageDescription`** — necessário no macOS 15+ para acessar a rede local
-- **`NSAppTransportSecurity`** com `NSAllowsLocalNetworking` — permite HTTP em IPs locais
-- **Hardened Runtime** ativo, sandbox desativado
-- **`com.apple.security.network.client`** + **`files.user-selected.read-only`** nas entitlements
-
-Na primeira tentativa de conexão, o macOS pedirá permissão de rede local — clique em **Permitir**.
+On first connection, macOS will prompt for local network permission — click **Allow**.
 
 ---
 
-## Servidor (referência rápida)
+## Localization
+
+The app automatically uses the system language. Supported: **English** (default) and **Brazilian Portuguese**.
+
+Files: `en.lproj/Localizable.strings` and `pt-BR.lproj/Localizable.strings`.
+
+---
+
+## Server Quick Start
 
 ```bash
-# Na Raspberry Pi
 cd backup_files/server
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-export BACKUP_API_KEY="sua-chave"
-export STORAGE_DIR="/mnt/hd-externo/backups"
-export DB_PATH="/mnt/hd-externo/backup.db"
+export BACKUP_API_KEY="your-key"
+export STORAGE_DIR="/mnt/external/backups"
+export DB_PATH="/mnt/external/backup.db"
 
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-Dashboard web: `http://<ip-da-pi>:8000/`  
-Swagger UI:    `http://<ip-da-pi>:8000/docs`
+Web dashboard: `http://<pi-ip>:8000/`
+Swagger UI: `http://<pi-ip>:8000/docs`
 
 ---
 
-## Resolução de problemas
+## Troubleshooting
 
-| Sintoma | Causa | Solução |
-|---------|-------|---------|
-| Erro `-1009` | Permissão de rede local negada | Configurações → Privacidade → Rede Local → ativar BackupVault |
-| `BadRequest` no upload | Servidor anterior à v2.1 | Atualizar o servidor para a v2.1+ |
-| `connection refused` | Servidor offline | `systemctl status backup-server` na Pi |
-| Dashboard mostra 0 storage | Campo `total_size_bytes` ausente | Atualizar o servidor para a v2.1+ |
-| Sidebar some ao redimensionar | (corrigido) | Atualize para a versão atual com `columnVisibility: .constant(.all)` |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Error `-1009` | Local network permission denied | System Settings → Privacy → Local Network → enable BackupVault |
+| `BadRequest` on upload | Server older than v2.1 | Update server to v2.1+ |
+| Keys shown raw (e.g. `menubar.open`) | Localizable.strings not in bundle | Verify `Localizable.strings` is in target Resources build phase |
+| Schedule not running | Battery mode or network | Check Settings → General → System Status |
+| `requiresApproval` on Login Item | macOS needs user consent | Click "Open Settings" in Settings → General |
+| Connection refused | Server offline | `systemctl status backup-server` on the Pi |

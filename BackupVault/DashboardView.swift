@@ -196,7 +196,7 @@ struct BackupRowView: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(backup.formattedSize)
                         .font(.subheadline.weight(.medium))
-                    Text("storage")
+                    Text("general.storage")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

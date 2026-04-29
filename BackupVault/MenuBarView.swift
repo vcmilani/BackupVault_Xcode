@@ -3,7 +3,8 @@ import SwiftUI
 struct MenuBarView: View {
     @EnvironmentObject var api:   APIService
     @EnvironmentObject var store: ConfigStore
-    @Environment(\.openWindow) private var openWindow
+    @Environment(\.openWindow)   private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     @State private var isRefreshing = false
 
@@ -148,7 +149,7 @@ struct MenuBarView: View {
                 }
 
                 MenuBarActionButton(label: "menubar.settings", icon: "gear") {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                    openSettings()
                     NSApp.activate(ignoringOtherApps: true)
                 }
 
@@ -208,7 +209,7 @@ struct MenuBarActionButton: View {
                 Image(systemName: icon)
                     .font(.caption)
                     .frame(width: 16)
-                Text(label)
+                Text(LocalizedStringKey(label))
                     .font(.subheadline)
                 Spacer()
             }
