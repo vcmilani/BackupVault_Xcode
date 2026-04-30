@@ -55,6 +55,7 @@ final class BackupQueue: ObservableObject {
 
             currentIndex = i
             items[i].status = .running
+            DockProgress.shared.setBadge("\(i + 1)/\(items.count)")
 
             let runner = BackupRunner(api: api)
             currentRunner = runner
@@ -73,6 +74,7 @@ final class BackupQueue: ObservableObject {
         currentRunner = nil
         currentIndex  = -1
         status = isCancelled ? .cancelled : .done
+        DockProgress.shared.update(progress: nil)
     }
 
     func cancel() {

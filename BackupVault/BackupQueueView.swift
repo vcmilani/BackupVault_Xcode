@@ -33,7 +33,7 @@ struct BackupQueueSheet: View {
                         .foregroundStyle(.blue)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Fila de Backup").font(.headline)
+                    Text("queue.title").font(.headline)
                     Text(headerSubtitle).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -57,13 +57,13 @@ struct BackupQueueSheet: View {
                 Spacer()
 
                 if phase == .selecting {
-                    Button("Selecionar Todos") {
+                    Button("queue.select_all") {
                         selection = Set(availableProfiles.map { $0.id })
                     }
                     .buttonStyle(.bordered)
                     .disabled(availableProfiles.isEmpty)
 
-                    Button("Iniciar Fila (\(selection.count))") {
+                    Button(String(format: NSLocalizedString("queue.start", comment: ""), selection.count)) {
                         startQueue()
                     }
                     .buttonStyle(.borderedProminent)
@@ -103,7 +103,7 @@ struct BackupQueueSheet: View {
                     Spacer()
                     Image(systemName: "list.bullet.rectangle")
                         .font(.largeTitle).foregroundStyle(.secondary)
-                    Text("Nenhuma configuração disponível")
+                    Text("queue.none_available")
                         .font(.headline)
                     Text("Crie pelo menos uma configuração ativa, com label e pasta definidos.")
                         .font(.caption).foregroundStyle(.secondary)
@@ -220,17 +220,17 @@ struct BackupQueueSheet: View {
         Group {
             switch phase {
             case .selecting:
-                Text("Aguardando").foregroundStyle(.secondary)
+                Text("queue.waiting").foregroundStyle(.secondary)
             case .running:
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.small)
-                    Text("Executando…").foregroundStyle(.blue)
+                    Text("queue.running").foregroundStyle(.blue)
                 }
             case .finished:
                 if queue?.status == .cancelled {
-                    Label("Cancelado", systemImage: "stop.circle.fill").foregroundStyle(.orange)
+                    Label("queue.cancelled", systemImage: "stop.circle.fill").foregroundStyle(.orange)
                 } else {
-                    Label("Concluído", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                    Label("queue.done", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
                 }
             }
         }

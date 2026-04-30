@@ -31,9 +31,9 @@ struct CleanupView: View {
 
                 // ── Header ───────────────────────────────────────────
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Limpeza de Versões")
+                    Text("cleanup.title")
                         .font(.largeTitle.bold())
-                    Text("Remove versões antigas e libera storage físico no servidor")
+                    Text("cleanup.subtitle")
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
 
@@ -45,13 +45,13 @@ struct CleanupView: View {
                             .font(.headline)
                         Picker("Alvo", selection: $mode) {
                             Text("Todos os backups").tag(CleanupMode.all)
-                            Text("Backup específico").tag(CleanupMode.specific)
+                            Text("cleanup.specific").tag(CleanupMode.specific)
                         }
                         .pickerStyle(.segmented)
 
                         if mode == .specific {
                             Picker("Backup", selection: $selectedLabel) {
-                                Text("Selecione um backup…").tag("")
+                                Text("cleanup.select_backup").tag("")
                                 ForEach(api.backups) { b in
                                     Text("\(b.label)  (\(b.versionCount) versões)").tag(b.label)
                                 }
@@ -76,7 +76,7 @@ struct CleanupView: View {
                             }
                         }
 
-                        Text("Versões além das \(keepCount) mais recentes serão permanentemente removidas. Arquivos físicos sem referência são automaticamente deletados do storage.")
+                        Text(String(format: NSLocalizedString("cleanup.keep_desc_full", comment: ""), keepCount))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -87,7 +87,7 @@ struct CleanupView: View {
                     // Preview table
                     if !targetBackups.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {
-                            Label("Pré-visualização", systemImage: "list.bullet.rectangle")
+                            Label("cleanup.preview_title", systemImage: "list.bullet.rectangle")
                                 .font(.headline)
 
                             VStack(spacing: 0) {
@@ -166,14 +166,14 @@ struct CleanupView: View {
                                 HStack(spacing: 6) {
                                     Image(systemName: "exclamationmark.triangle.fill")
                                         .foregroundStyle(.orange)
-                                    Text("Total de \(totalWillRemove) versão(ões) serão removidas desta operação.")
+                                    Text(String(format: NSLocalizedString("cleanup.removed_total", comment: ""), totalWillRemove))
                                         .font(.subheadline)
                                 }
                             } else {
                                 HStack(spacing: 6) {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundStyle(.green)
-                                    Text("Nenhuma versão será removida com este critério.")
+                                    Text("cleanup.removed_none")
                                         .font(.subheadline)
                                 }
                             }
@@ -192,7 +192,7 @@ struct CleanupView: View {
                     } label: {
                         HStack {
                             if isRunning { ProgressView().controlSize(.small) }
-                            Label(isRunning ? "Executando…" : "Iniciar Limpeza", systemImage: "trash.slash.fill")
+                            Label(isRunning ? L("cleanup.start_running") : L("cleanup.start_btn"), systemImage: "trash.slash.fill")
                         }
                         .frame(minWidth: 160)
                     }
@@ -219,7 +219,7 @@ struct CleanupView: View {
                     let totalFreed   = results.reduce(0) { $0 + $1.storageFilesRemoved }
 
                     VStack(alignment: .leading, spacing: 16) {
-                        Label("Resultado da Limpeza", systemImage: "checkmark.seal.fill")
+                        Label("cleanup.result_title", systemImage: "checkmark.seal.fill")
                             .font(.headline)
                             .foregroundStyle(.green)
 
@@ -268,8 +268,8 @@ struct CleanupView: View {
         }
         .onAppear { Task { await api.fetchBackups() } }
         .alert("Confirmar limpeza?", isPresented: $showConfirm) {
-            Button("Cancelar", role: .cancel) {}
-            Button("Limpar", role: .destructive) { runCleanup() }
+            Button("common.cancel", role: .cancel) {}
+            Button("cleanup.confirm_btn", role: .destructive) { runCleanup() }
         } message: {
             Text("Esta ação é \(Text("irreversível").bold()). \(totalWillRemove) versão(ões) serão permanentemente removidas do servidor.")
         }

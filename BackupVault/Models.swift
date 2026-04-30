@@ -172,6 +172,62 @@ struct GlobalStats {
     }
 }
 
+
+// MARK: - Backup Schedule
+
+struct BackupSchedule: Codable, Hashable, Equatable {
+    enum Frequency: String, Codable, CaseIterable, Identifiable {
+        case off, hourly, daily, weekly, custom
+        var id: String { rawValue }
+    }
+
+    var frequency: Frequency = .off
+    var hour: Int    = 2          // for daily/weekly (0-23)
+    var minute: Int  = 0          // for daily/weekly (0-59)
+    var weekday: Int = 1          // for weekly (1=Sun … 7=Sat)
+    var customMinutes: Int = 60   // for custom
+
+    var enabled: Bool { frequency != .off }
+
+    /// Computes the next run date given a baseline (typically Date()).
+    func nextRun(after baseline: Date = Date(), lastRun: Date? = nil) -> Date? {
+        let cal = Calendar.current
+        switch frequency {
+        case .off:
+            return nil
+        case .hourly:
+            let from = lastRun ?? baseline
+            return cal.date(byAdding: .hour, value: 1, to: from) ?? baseline.addingTimeInterval(3600)
+        case .custom:
+            let from = lastRun ?? baseline
+            return cal.date(byAdding: .minute, value: customMinutes, to: from)
+                   ?? baseline.addingTimeInterval(TimeInterval(customMinutes * 60))
+        case .daily:
+            return nextOccurrence(hour: hour, minute: minute, weekday: nil, after: baseline)
+        case .weekly:
+            return nextOccurrence(hour: hour, minute: minute, weekday: weekday, after: baseline)
+        }
+    }
+
+    private func nextOccurrence(hour: Int, minute: Int, weekday: Int?, after baseline: Date) -> Date? {
+        let cal = Calendar.current
+        var comps = DateComponents()
+        comps.hour = hour
+        comps.minute = minute
+        if let weekday { comps.weekday = weekday }
+        return cal.nextDate(after: baseline, matching: comps,
+                             matchingPolicy: .nextTime, direction: .forward)
+    }
+
+    /// True if a scheduled run is currently due (and the scheduler should fire).
+    func isDue(now: Date = Date(), lastRun: Date?) -> Bool {
+        guard enabled else { return false }
+        guard let next = nextRun(after: lastRun ?? Date.distantPast, lastRun: lastRun)
+        else { return false }
+        return now >= next
+    }
+}
+
 // MARK: - Local Backup Profile
 
 struct BackupProfile: Codable, Identifiable, Hashable {
@@ -185,12 +241,22 @@ struct BackupProfile: Codable, Identifiable, Hashable {
     var serverOverride: String
     var enabled: Bool
 
+    // Scheduling (v1.2)
+    var schedule: BackupSchedule = BackupSchedule()
+    var lastRun: Date?
+    var lastRunStatus: String?     // "done" / "failed" / "cancelled"
+
     init(name: String = "Novo Backup", label: String = "", sourcePath: String = "",
          excludes: [String] = [], workers: Int = 4, prefix: String = "",
-         serverOverride: String = "", enabled: Bool = true) {
+         serverOverride: String = "", enabled: Bool = true,
+         schedule: BackupSchedule = BackupSchedule(),
+         lastRun: Date? = nil, lastRunStatus: String? = nil) {
         self.name = name; self.label = label; self.sourcePath = sourcePath
         self.excludes = excludes; self.workers = workers; self.prefix = prefix
         self.serverOverride = serverOverride; self.enabled = enabled
+        self.schedule = schedule
+        self.lastRun  = lastRun
+        self.lastRunStatus = lastRunStatus
     }
 
     func cliCommand(defaultServer: String) -> String {

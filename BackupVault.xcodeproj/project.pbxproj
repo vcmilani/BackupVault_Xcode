@@ -27,6 +27,12 @@
 		B2C3D4E5F6A7B8C9D0E1F2A3 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* L10n.swift */; };
 		C3D4E5F6A7B8C9D0E1F2A3B4 /* en in Resources */ = {isa = PBXBuildFile; fileRef = D4E5F6A7B8C9D0E1F2A3B4C5 /* Localizable.strings */; };
 		08C9D0E1F2A3B4C5D6E7F8A9 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = F6A7B8C9D0E1F2A3B4C5D6E7 /* Localizable.strings */; };
+		11E1F2A3B4C5D6E7F8A90112 /* LoginItemManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10D0E1F2A3B4C5D6E7F8A901 /* LoginItemManager.swift */; };
+		13A3B4C5D6E7F8A901122334 /* PowerMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12F2A3B4C5D6E7F8A9011223 /* PowerMonitor.swift */; };
+		15C5D6E7F8A901122334455A  /* BackoffPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B4C5D6E7F8A90112233445 /* BackoffPolicy.swift */; };
+		17E7F8A901122334455A6B7C /* ScheduleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16D6E7F8A901122334455A6B /* ScheduleManager.swift */; };
+		19A901122334455A6B7C8D9E /* ScheduleEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F8A901122334455A6B7C8D /* ScheduleEditor.swift */; };
+		21AB011223345566778899CD /* DockProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20A9011223345566778899AB /* DockProgress.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +58,12 @@
 		A1B2C3D4E5F6A7B8C9D0E1F2 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
 		E5F6A7B8C9D0E1F2A3B4C5D6 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Localizable.strings; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		07B8C9D0E1F2A3B4C5D6E7F8 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		10D0E1F2A3B4C5D6E7F8A901 /* LoginItemManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItemManager.swift; sourceTree = "<group>"; };
+		12F2A3B4C5D6E7F8A9011223 /* PowerMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerMonitor.swift; sourceTree = "<group>"; };
+		14B4C5D6E7F8A90112233445  /* BackoffPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackoffPolicy.swift; sourceTree = "<group>"; };
+		16D6E7F8A901122334455A6B /* ScheduleManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleManager.swift; sourceTree = "<group>"; };
+		18F8A901122334455A6B7C8D /* ScheduleEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleEditor.swift; sourceTree = "<group>"; };
+		20A9011223345566778899AB /* DockProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockProgress.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,6 +115,12 @@
 				7745F6A9B4C847B7A326F84C /* BackupQueueView.swift */,
 				A1B2C3D4E5F6A7B8C9D0E1F2 /* L10n.swift */,
 				F6A7B8C9D0E1F2A3B4C5D6E7 /* Localizable.strings */,
+				10D0E1F2A3B4C5D6E7F8A901 /* LoginItemManager.swift */,
+				12F2A3B4C5D6E7F8A9011223 /* PowerMonitor.swift */,
+				14B4C5D6E7F8A90112233445  /* BackoffPolicy.swift */,
+				16D6E7F8A901122334455A6B /* ScheduleManager.swift */,
+				18F8A901122334455A6B7C8D /* ScheduleEditor.swift */,
+				20A9011223345566778899AB /* DockProgress.swift */,
 				FE65E70C406D4D9E9CE23554 /* Info.plist */,
 			);
 			path = BackupVault;
@@ -207,6 +225,12 @@
 				EA1787FC65BF472BA449C3ED /* BackupRunnerView.swift in Sources */,
 				C3AB8486F0C04388A6730754 /* BackupQueue.swift in Sources */,
 				656BBA46EE334A2CB007B443 /* BackupQueueView.swift in Sources */,
+				11E1F2A3B4C5D6E7F8A90112 /* LoginItemManager.swift in Sources */,
+				13A3B4C5D6E7F8A901122334 /* PowerMonitor.swift in Sources */,
+				15C5D6E7F8A901122334455A  /* BackoffPolicy.swift in Sources */,
+				17E7F8A901122334455A6B7C /* ScheduleManager.swift in Sources */,
+				19A901122334455A6B7C8D9E /* ScheduleEditor.swift in Sources */,
+				21AB011223345566778899CD /* DockProgress.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -349,7 +373,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.vcm.backupvault.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
@@ -378,7 +402,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.vcm.backupvault.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;

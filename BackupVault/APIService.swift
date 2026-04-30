@@ -16,6 +16,9 @@ final class APIService: ObservableObject {
     @Published var isConnected: Bool = false
     @Published var connectionError: String?
 
+    // MARK: - Backoff (avoid hammering offline servers)
+    @Published var backoff = BackoffPolicy()
+
     // MARK: - Data
     @Published var backups: [BackupSummary] = []
     @Published var isLoadingBackups = false
@@ -75,19 +78,29 @@ final class APIService: ObservableObject {
     }
 
     // MARK: - Health
-    func checkHealth() async {
+    func checkHealth(forceTry: Bool = false) async {
+        // Respect backoff window unless explicitly forced (user-initiated)
+        if !forceTry && !backoff.shouldAttempt {
+            return
+        }
         do {
             let req = try buildRequest("/health")
             let (_, resp) = try await URLSession.shared.data(for: req)
             let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
             isConnected = (200..<300).contains(code)
             connectionError = isConnected ? nil : "HTTP \(code) — \(serverURL)"
+            if isConnected {
+                backoff.recordSuccess()
+            } else {
+                backoff.recordFailure()
+            }
         } catch {
             isConnected = false
             let msg = (error as NSError).code == -1009
-                ? "Servidor inacessível em \(serverURL). Verifique o IP e a rede."
+                ? "Servidor inacessível em \(serverURL)."
                 : error.localizedDescription
             connectionError = msg
+            backoff.recordFailure()
         }
     }
 
