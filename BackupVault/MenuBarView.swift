@@ -177,6 +177,7 @@ struct MenuBarView: View {
             // ── Actions ──────────────────────────────────────────────
             VStack(spacing: 0) {
                 MenuBarActionButton(label: "menubar.open", icon: "macwindow") {
+                    NSApp.setActivationPolicy(.regular)
                     openWindow(id: "main")
                     NSApp.activate(ignoringOtherApps: true)
                 }
