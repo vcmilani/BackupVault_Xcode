@@ -26,6 +26,7 @@ final class BackupRunner: ObservableObject {
 
     private let api: APIService
     private var isCancelled = false
+    private var session = URLSession(configuration: .default)
 
     /// Upload concurrency limit — mirrors Python client --workers default
     private let maxConcurrentUploads = 4
@@ -37,12 +38,14 @@ final class BackupRunner: ObservableObject {
     func cancel() {
         guard status == .running else { return }
         isCancelled = true
+        session.invalidateAndCancel()
         log(L("runner.cancel_requested"), .warning)
     }
 
     // MARK: - Run
 
     func run(profile: BackupProfile) async {
+        session     = URLSession(configuration: .default)
         status      = .running
         isCancelled = false
         entries     = []
@@ -75,27 +78,35 @@ final class BackupRunner: ObservableObject {
             status = .failed; return
         }
 
-        // 3. Walk filesystem
-        let fm = FileManager.default
-        guard let enumerator = fm.enumerator(
-            at: URL(fileURLWithPath: source),
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ) else {
+        // 3. Walk filesystem (off main actor — avoids blocking UI for large directories)
+        let excludes = profile.excludes
+        let fileURLs: [URL]
+        do {
+            fileURLs = try await Task.detached(priority: .userInitiated) {
+                let fm = FileManager.default
+                guard let enumerator = fm.enumerator(
+                    at: URL(fileURLWithPath: source),
+                    includingPropertiesForKeys: [.isDirectoryKey],
+                    options: [.skipsHiddenFiles]
+                ) else {
+                    throw NSError(domain: "BackupVault", code: -1, userInfo: [:])
+                }
+                var urls: [URL] = []
+                for case let url as URL in enumerator {
+                    if excludes.contains(url.lastPathComponent) {
+                        enumerator.skipDescendants(); continue
+                    }
+                    var isDir: ObjCBool = false
+                    fm.fileExists(atPath: url.path, isDirectory: &isDir)
+                    if !isDir.boolValue { urls.append(url) }
+                }
+                return urls
+            }.value
+        } catch {
             log(L("runner.source_unreadable", source), .error)
             await finalizeVersion(label: label, versionKey: versionKey, ok: false)
             DockProgress.shared.update(progress: nil)
             status = .failed; return
-        }
-
-        var fileURLs: [URL] = []
-        for case let url as URL in enumerator {
-            if profile.excludes.contains(url.lastPathComponent) {
-                enumerator.skipDescendants(); continue
-            }
-            var isDir: ObjCBool = false
-            fm.fileExists(atPath: url.path, isDirectory: &isDir)
-            if !isDir.boolValue { fileURLs.append(url) }
         }
 
         stats.total = fileURLs.count
@@ -138,10 +149,12 @@ final class BackupRunner: ObservableObject {
                             )
                             await accumulator.record(action: action)
                         } catch {
-                            await accumulator.recordError()
-                            await MainActor.run {
-                                self.log(L("runner.file_error", url.lastPathComponent,
-                                           error.localizedDescription), .error)
+                            if !(error is CancellationError) {
+                                await accumulator.recordError()
+                                await MainActor.run {
+                                    self.log(L("runner.file_error", url.lastPathComponent,
+                                               error.localizedDescription), .error)
+                                }
                             }
                         }
                         await MainActor.run {
@@ -204,7 +217,7 @@ final class BackupRunner: ObservableObject {
             "client_name": ProcessInfo.processInfo.hostName
         ])
         let req = try api.buildRequest("/backups", method: "POST", body: body)
-        let (data, resp) = try await URLSession.shared.data(for: req)
+        let (data, resp) = try await session.data(for: req)
         guard let http = resp as? HTTPURLResponse else { return }
         if http.statusCode == 409 { return }  // Already exists — ok
         if !(200..<300).contains(http.statusCode) {
@@ -223,7 +236,7 @@ final class BackupRunner: ObservableObject {
         let versionKey = formatter.string(from: Date())
         let body = try JSONSerialization.data(withJSONObject: ["version_key": versionKey])
         let req  = try api.buildRequest("/backups/\(label.urlSafe)/versions", method: "POST", body: body)
-        let (data, resp) = try await URLSession.shared.data(for: req)
+        let (data, resp) = try await session.data(for: req)
         if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             let msg = String(data: data, encoding: .utf8) ?? "(sem mensagem)"
             throw NSError(domain: "BackupVault", code: http.statusCode,
@@ -244,24 +257,26 @@ final class BackupRunner: ObservableObject {
                                       versionKey: String, serverPath: String) async throws -> String {
         var lastError: Error?
         for attempt in 1...maxRetries {
+            guard !isCancelled else { throw CancellationError() }
             do {
                 return try await processFile(url: url, label: label,
                                              versionKey: versionKey, serverPath: serverPath)
             } catch {
                 lastError = error
-                if attempt < maxRetries {
-                    // 0.5 s · 1 s · 2 s …
-                    try? await Task.sleep(nanoseconds: UInt64(500_000_000) * UInt64(attempt))
-                }
+                guard !isCancelled, attempt < maxRetries else { break }
+                // 0.5 s · 1 s · 2 s …
+                try? await Task.sleep(nanoseconds: UInt64(500_000_000) * UInt64(attempt))
             }
         }
-        throw lastError!
+        throw lastError ?? CancellationError()
     }
 
     /// Streams SHA-256 + uploads via file URL — never loads full file into memory
     private func processFile(url: URL, label: String,
                              versionKey: String, serverPath: String) async throws -> String {
-        let (sha256, size) = try computeSHA256Streaming(url: url)
+        guard !isCancelled else { throw CancellationError() }
+        let (sha256, size) = try await computeSHA256Streaming(url: url)
+        guard !isCancelled else { throw CancellationError() }
 
         let mtime: Double = {
             if let date = try? FileManager.default
@@ -281,12 +296,14 @@ final class BackupRunner: ObservableObject {
             "mtime":  mtime
         ] as [String: Any])
         let checkReq = try api.buildRequest("/check", method: "POST", body: checkBody)
-        let (checkData, _) = try await URLSession.shared.data(for: checkReq)
+        let (checkData, _) = try await session.data(for: checkReq)
         let checkResp     = try? JSONDecoder().decode(CheckResponse.self, from: checkData)
         let needsUpload   = checkResp?.needsUpload   ?? true
         let contentExists = checkResp?.contentExists ?? false
 
         if !needsUpload { return "ignore" }
+
+        guard !isCancelled else { throw CancellationError() }
 
         // Build upload request
         var req = try api.buildRequest("/upload", method: "POST", body: nil)
@@ -300,10 +317,10 @@ final class BackupRunner: ObservableObject {
         if !contentExists {
             req.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
             // Upload directly from file — avoids loading large files into memory
-            (respData, response) = try await URLSession.shared.upload(for: req, fromFile: url)
+            (respData, response) = try await session.upload(for: req, fromFile: url)
         } else {
             req.setValue(sha256, forHTTPHeaderField: "X-Content-Sha256")
-            (respData, response) = try await URLSession.shared.data(for: req)
+            (respData, response) = try await session.data(for: req)
         }
 
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
@@ -315,36 +332,38 @@ final class BackupRunner: ObservableObject {
         return contentExists ? "register" : "upload"
     }
 
-    /// Computes SHA-256 in 1 MB chunks — safe for files of any size
-    private func computeSHA256Streaming(url: URL) throws -> (sha256: String, size: Int) {
-        let bufferSize = 1_048_576  // 1 MB
-        guard let stream = InputStream(url: url) else {
-            throw NSError(domain: "BackupVault", code: -1,
-                          userInfo: [NSLocalizedDescriptionKey:
-                            "Não foi possível abrir: \(url.path)"])
-        }
-        stream.open()
-        defer { stream.close() }
-
-        var hasher    = SHA256()
-        var totalSize = 0
-        let buffer    = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-        defer { buffer.deallocate() }
-
-        while stream.hasBytesAvailable {
-            let read = stream.read(buffer, maxLength: bufferSize)
-            if read < 0 {
-                throw stream.streamError ?? NSError(domain: "BackupVault", code: -1,
-                    userInfo: [NSLocalizedDescriptionKey: "Erro de leitura: \(url.path)"])
+    /// Computes SHA-256 in 1 MB chunks — runs off the main actor via Task.detached
+    private func computeSHA256Streaming(url: URL) async throws -> (sha256: String, size: Int) {
+        return try await Task.detached(priority: .userInitiated) {
+            let bufferSize = 1_048_576  // 1 MB
+            guard let stream = InputStream(url: url) else {
+                throw NSError(domain: "BackupVault", code: -1,
+                              userInfo: [NSLocalizedDescriptionKey:
+                                "Não foi possível abrir: \(url.path)"])
             }
-            if read == 0 { break }
-            hasher.update(data: Data(bytes: buffer, count: read))
-            totalSize += read
-        }
+            stream.open()
+            defer { stream.close() }
 
-        let digest = hasher.finalize()
-        let sha256  = digest.compactMap { String(format: "%02x", $0) }.joined()
-        return (sha256, totalSize)
+            var hasher    = SHA256()
+            var totalSize = 0
+            let buffer    = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+            defer { buffer.deallocate() }
+
+            while stream.hasBytesAvailable {
+                let read = stream.read(buffer, maxLength: bufferSize)
+                if read < 0 {
+                    throw stream.streamError ?? NSError(domain: "BackupVault", code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "Erro de leitura: \(url.path)"])
+                }
+                if read == 0 { break }
+                hasher.update(data: Data(bytes: buffer, count: read))
+                totalSize += read
+            }
+
+            let digest = hasher.finalize()
+            let sha256  = digest.compactMap { String(format: "%02x", $0) }.joined()
+            return (sha256, totalSize)
+        }.value
     }
 
     private func syncVersion(label: String, versionKey: String, paths: [String]) async throws -> Bool {
@@ -354,7 +373,7 @@ final class BackupRunner: ObservableObject {
             "existing_paths": paths
         ] as [String: Any])
         let req = try api.buildRequest("/sync", method: "POST", body: body)
-        let (data, _) = try await URLSession.shared.data(for: req)
+        let (data, _) = try await session.data(for: req)
         let resp = try? JSONDecoder().decode(SyncResponse.self, from: data)
         return resp?.synced ?? false
     }
@@ -365,6 +384,7 @@ final class BackupRunner: ObservableObject {
                   "/backups/\(label.urlSafe)/versions/\(versionKey.urlSafe)",
                   method: "PATCH", body: body)
         else { return }
+        // URLSession.shared — must succeed even after session.invalidateAndCancel()
         _ = try? await URLSession.shared.data(for: req)
     }
 

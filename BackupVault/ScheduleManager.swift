@@ -58,6 +58,7 @@ final class ScheduleManager: ObservableObject {
     func tick() {
         lastTickDate = Date()
         guard !isRunningScheduled else { return }
+        guard activeManualRunner == nil, activeQueue == nil else { return }
         guard let store, let api, let power else { return }
 
         // Skip if API not connected (backoff window respected by API)
