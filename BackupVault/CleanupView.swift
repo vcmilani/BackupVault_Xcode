@@ -41,10 +41,10 @@ struct CleanupView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     // Mode picker
                     VStack(alignment: .leading, spacing: 10) {
-                        Label("Alvo", systemImage: "scope")
+                        Label("cleanup.target_label", systemImage: "scope")
                             .font(.headline)
-                        Picker("Alvo", selection: $mode) {
-                            Text("Todos os backups").tag(CleanupMode.all)
+                        Picker("cleanup.target_label", selection: $mode) {
+                            Text("cleanup.all_backups").tag(CleanupMode.all)
                             Text("cleanup.specific").tag(CleanupMode.specific)
                         }
                         .pickerStyle(.segmented)
@@ -64,14 +64,14 @@ struct CleanupView: View {
 
                     // Keep count
                     VStack(alignment: .leading, spacing: 10) {
-                        Label("Versões a manter", systemImage: "clock.arrow.circlepath")
+                        Label("cleanup.keep_label", systemImage: "clock.arrow.circlepath")
                             .font(.headline)
 
                         HStack(spacing: 16) {
                             Stepper(value: $keepCount, in: 1...100) {
                                 Text("\(keepCount)")
                                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                                    + Text(" versões mais recentes")
+                                    + Text(" " + L("cleanup.keep_count_fmt", keepCount))
                                     .font(.body)
                             }
                         }
@@ -93,19 +93,19 @@ struct CleanupView: View {
                             VStack(spacing: 0) {
                                 // Header row
                                 HStack {
-                                    Text("Label")
+                                    Text("cleanup.col.label")
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(.secondary)
                                         .frame(maxWidth: .infinity, alignment: .leading)
-                                    Text("Atuais")
+                                    Text("cleanup.col.current")
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(.secondary)
                                         .frame(width: 60, alignment: .trailing)
-                                    Text("Manter")
+                                    Text("cleanup.col.keep")
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(.secondary)
                                         .frame(width: 60, alignment: .trailing)
-                                    Text("Remover")
+                                    Text("cleanup.col.remove")
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(.secondary)
                                         .frame(width: 70, alignment: .trailing)
@@ -225,11 +225,11 @@ struct CleanupView: View {
 
                         // Summary stats
                         HStack(spacing: 0) {
-                            ResultStat(value: "\(results.count)", label: "Labels")
+                            ResultStat(value: "\(results.count)", label: "cleanup.stat.labels")
                             Divider()
-                            ResultStat(value: "\(totalRemoved)", label: "Versões removidas")
+                            ResultStat(value: "\(totalRemoved)", label: "cleanup.stat.removed")
                             Divider()
-                            ResultStat(value: "\(totalFreed)", label: "Arquivos liberados")
+                            ResultStat(value: "\(totalFreed)", label: "cleanup.stat.freed")
                         }
                         .frame(height: 70)
                         .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
@@ -240,7 +240,7 @@ struct CleanupView: View {
                             ForEach(Array(results.enumerated()), id: \.offset) { idx, r in
                                 let icon    = r.removed > 0 ? "checkmark.circle.fill" : "minus.circle.fill"
                                 let iconClr = r.removed > 0 ? Color.green : Color.secondary
-                                let detail  = "mantidas: \(r.kept)  removidas: \(r.removed)  storage: \(r.storageFilesRemoved)"
+                                let detail  = L("cleanup.result_detail", r.kept, r.removed, r.storageFilesRemoved)
                                 HStack(spacing: 10) {
                                     Image(systemName: icon)
                                         .foregroundStyle(iconClr)
@@ -267,11 +267,11 @@ struct CleanupView: View {
             .padding(28)
         }
         .onAppear { Task { await api.fetchBackups() } }
-        .alert("Confirmar limpeza?", isPresented: $showConfirm) {
+        .alert("cleanup.confirm_title", isPresented: $showConfirm) {
             Button("common.cancel", role: .cancel) {}
             Button("cleanup.confirm_btn", role: .destructive) { runCleanup() }
         } message: {
-            Text("Esta ação é \(Text("irreversível").bold()). \(totalWillRemove) versão(ões) serão permanentemente removidas do servidor.")
+            Text(L("cleanup.confirm_msg", totalWillRemove))
         }
     }
 

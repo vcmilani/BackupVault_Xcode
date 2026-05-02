@@ -51,7 +51,7 @@ struct MenuBarView: View {
                         .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
                 }
                 .buttonStyle(.plain)
-                .help("Atualizar")
+                .help(LocalizedStringKey("menubar.refresh"))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
@@ -163,7 +163,7 @@ struct MenuBarView: View {
                     }
 
                     if api.backups.count > 5 {
-                        Text("+ \(api.backups.count - 5) mais…")
+                        Text(L("menubar.more", api.backups.count - 5))
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                             .frame(maxWidth: .infinity, alignment: .center)

@@ -2,9 +2,9 @@ import SwiftUI
 
 /// Substituto compatível com macOS 13 para ContentUnavailableView (disponível só no 14+).
 struct PlaceholderView: View {
-    let title: String
+    let title: LocalizedStringKey
     var icon: String = "questionmark.circle"
-    var description: String?
+    var description: LocalizedStringKey?
 
     var body: some View {
         VStack(spacing: 12) {
