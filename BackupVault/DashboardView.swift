@@ -106,10 +106,10 @@ struct DashboardView: View {
                             bodyText: "O conteúdo físico é armazenado apenas uma vez por SHA-256. Arquivos idênticos entre versões ou labels compartilham o mesmo bloco — zero bytes trafegam na rede se o conteúdo já existe."
                         )
                         InfoCard(
-                            icon: "trash.slash",
-                            color: .orange,
+                            icon: "doc.on.doc",
+                            color: .blue,
                             title: "dashboard.info.deleted.title",
-                            bodyText: "Arquivos removidos do cliente são marcados como 'deleted' na versão, nunca apagados do storage fisicamente. Isso preserva o histórico completo. A limpeza remove versões antigas inteiras."
+                            bodyText: "dashboard.info.deleted.body"
                         )
                         InfoCard(
                             icon: "lock.shield",

@@ -71,8 +71,6 @@ struct BackupRunnerSheet: View {
                     Divider()
                     MiniRunStat(value: "\(runner.stats.ignored)",    label: "runner.stat.ignored",   color: .secondary)
                     Divider()
-                    MiniRunStat(value: "\(runner.stats.deleted)",    label: "runner.stat.deleted",   color: .orange)
-                    Divider()
                     MiniRunStat(value: "\(runner.stats.errors)",     label: "runner.stat.errors",       color: .red)
                 }
                 .frame(height: 56)

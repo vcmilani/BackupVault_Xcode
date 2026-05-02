@@ -1,7 +1,42 @@
 import SwiftUI
 
+class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        let nc = NotificationCenter.default
+        nc.addObserver(self, selector: #selector(windowWillClose),
+                       name: NSWindow.willCloseNotification, object: nil)
+        nc.addObserver(self, selector: #selector(windowDidBecomeMain),
+                       name: NSWindow.didBecomeMainNotification, object: nil)
+    }
+
+    @objc private func windowWillClose(_ note: Notification) {
+        guard let window = note.object as? NSWindow else { return }
+        guard isMainAppWindow(window) else { return }
+        DispatchQueue.main.async {
+            let hasVisibleMain = NSApp.windows.contains {
+                $0 != window && self.isMainAppWindow($0) && $0.isVisible
+            }
+            if !hasVisibleMain {
+                NSApp.setActivationPolicy(.accessory)
+            }
+        }
+    }
+
+    @objc private func windowDidBecomeMain(_ note: Notification) {
+        guard let window = note.object as? NSWindow else { return }
+        guard isMainAppWindow(window) else { return }
+        NSApp.setActivationPolicy(.regular)
+    }
+
+    private func isMainAppWindow(_ window: NSWindow) -> Bool {
+        guard let id = window.identifier?.rawValue else { return false }
+        return id.contains("main")
+    }
+}
+
 @main
 struct BackupVaultApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var api      = APIService()
     @StateObject private var store    = ConfigStore()
     @StateObject private var power    = PowerMonitor()

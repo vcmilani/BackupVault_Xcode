@@ -132,7 +132,7 @@ final class APIService: ObservableObject {
 
     // MARK: - Files
     func fetchFiles(label: String, versionKey: String) async throws -> [VersionFile] {
-        let params = "?backup_label=\(label.urlEncoded)&version_key=\(versionKey.urlEncoded)&include_deleted=true"
+        let params = "?backup_label=\(label.urlEncoded)&version_key=\(versionKey.urlEncoded)"
         let req = try buildRequest("/files" + params)
         let (data, _) = try await URLSession.shared.data(for: req)
         return try decode([VersionFile].self, from: data)

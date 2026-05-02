@@ -213,9 +213,6 @@ struct VersionListRow: View {
             }
             HStack(spacing: 4) {
                 Text("\(version.fileCount) arquivos")
-                if version.deletedCount > 0 {
-                    Text("· \(version.deletedCount) del.").foregroundStyle(.red.opacity(0.7))
-                }
                 Text("· \(version.formattedSize)")
             }
             .font(.caption2).foregroundStyle(.secondary)
@@ -230,18 +227,13 @@ struct FilesDetailView: View {
     let isLoading: Bool
 
     @State private var fileSearch  = ""
-    @State private var showDeleted = true
     @State private var sortOrder   = [KeyPathComparator(\VersionFile.originalPath)]
 
     var filtered: [VersionFile] {
         var r = files
-        if !showDeleted { r = r.filter { !$0.isDeleted } }
         if !fileSearch.isEmpty { r = r.filter { $0.originalPath.localizedCaseInsensitiveContains(fileSearch) } }
         return r
     }
-
-    var activeCount:  Int { files.filter { !$0.isDeleted }.count }
-    var deletedCount: Int { files.filter {  $0.isDeleted }.count }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -254,14 +246,12 @@ struct FilesDetailView: View {
                         Text(version.versionKey).font(.headline.monospaced())
                     }
                     HStack(spacing: 8) {
-                        Label("\(activeCount) ativos",     systemImage: "doc.fill").foregroundStyle(.green)
-                        Label("\(deletedCount) deletados", systemImage: "doc")      .foregroundStyle(.secondary)
+                        Label("\(files.count) arquivos", systemImage: "doc.fill").foregroundStyle(.blue)
                         Text("·"); Text(version.formattedSize)
                     }
                     .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Toggle("backups.show_deleted", isOn: $showDeleted).toggleStyle(.checkbox).font(.caption)
             }
             .padding(.horizontal, 16).padding(.vertical, 10)
             Divider()
@@ -273,22 +263,17 @@ struct FilesDetailView: View {
                 Table(filtered, sortOrder: $sortOrder) {
                     TableColumn("backups.col.file", value: \.originalPath) { file in
                         HStack(spacing: 6) {
-                            Image(systemName: file.isDeleted ? "doc.fill" : "doc")
+                            Image(systemName: "doc")
                                 .font(.caption)
-                                .foregroundStyle(file.isDeleted ? Color.secondary : Color.blue)
+                                .foregroundStyle(.blue)
                             Text(file.originalPath)
                                 .font(.caption.monospaced())
-                                .foregroundStyle(file.isDeleted ? Color.secondary : Color.primary)
-                                .strikethrough(file.isDeleted).lineLimit(1)
+                                .lineLimit(1)
                         }
                     }
                     TableColumn("backups.col.size", value: \.size) { file in
                         Text(file.formattedSize).font(.caption).foregroundStyle(.secondary)
                     }.width(80)
-                    TableColumn("backups.col.status") { file in
-                        Text(file.status).font(.caption.weight(.medium))
-                            .foregroundStyle(file.isDeleted ? .red : .green)
-                    }.width(70)
                     TableColumn("backups.col.sha") { file in
                         Text(String(file.sha256.prefix(12)) + "…")
                             .font(.caption2.monospaced()).foregroundStyle(.tertiary)

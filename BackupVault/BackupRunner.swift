@@ -21,7 +21,7 @@ final class BackupRunner: ObservableObject {
     }
 
     struct Stats {
-        var total = 0, uploaded = 0, registered = 0, ignored = 0, deleted = 0, errors = 0
+        var total = 0, uploaded = 0, registered = 0, ignored = 0, errors = 0
     }
 
     private let api: APIService
@@ -143,13 +143,12 @@ final class BackupRunner: ObservableObject {
             return
         }
 
-        // 5. Sync deletions
+        // 5. Sync
         do {
-            let deleted = try await syncDeletions(label: label,
-                                                   versionKey: versionKey,
-                                                   paths: serverPaths)
-            stats.deleted = deleted
-            if deleted > 0 { log("Deletados marcados: \(deleted)", .warning) }
+            let synced = try await syncDeletions(label: label,
+                                                  versionKey: versionKey,
+                                                  paths: serverPaths)
+            if synced { log("Sync concluído", .success) }
         } catch {
             log("Sync ignorado: \(error.localizedDescription)", .warning)
         }
@@ -162,7 +161,7 @@ final class BackupRunner: ObservableObject {
         DockProgress.shared.update(progress: nil)
         DockProgress.shared.bounce()
         log("─────────────────────────────────────", .info)
-        log("Enviados: \(stats.uploaded)  Registrados: \(stats.registered)  Ignorados: \(stats.ignored)  Deletados: \(stats.deleted)  Erros: \(stats.errors)", .success)
+        log("Enviados: \(stats.uploaded)  Registrados: \(stats.registered)  Ignorados: \(stats.ignored)  Erros: \(stats.errors)", .success)
     }
 
     // MARK: - API Helpers
@@ -266,7 +265,7 @@ final class BackupRunner: ObservableObject {
         return contentExists ? "register" : "upload"
     }
 
-    private func syncDeletions(label: String, versionKey: String, paths: [String]) async throws -> Int {
+    private func syncDeletions(label: String, versionKey: String, paths: [String]) async throws -> Bool {
         let body = try JSONSerialization.data(withJSONObject: [
             "backup_label": label,
             "version_key":  versionKey,
@@ -275,7 +274,7 @@ final class BackupRunner: ObservableObject {
         let req = try api.buildRequest("/sync", method: "POST", body: body)
         let (data, _) = try await URLSession.shared.data(for: req)
         let resp = try? JSONDecoder().decode(SyncResponse.self, from: data)
-        return resp?.deletedCount ?? 0
+        return resp?.synced ?? false
     }
 
     private func finalizeVersion(label: String, versionKey: String, ok: Bool) async {

@@ -45,7 +45,6 @@ struct BackupVersion: Codable, Identifiable, Hashable {
     let createdAt: String?
     let finishedAt: String?
     let fileCount: Int
-    let deletedCount: Int
     let totalSizeBytes: Int64
 
     enum CodingKeys: String, CodingKey {
@@ -55,7 +54,6 @@ struct BackupVersion: Codable, Identifiable, Hashable {
         case createdAt      = "created_at"
         case finishedAt     = "finished_at"
         case fileCount      = "file_count"
-        case deletedCount   = "deleted_count"
         case totalSizeBytes = "total_size_bytes"
     }
 
@@ -77,16 +75,14 @@ struct VersionFile: Codable, Identifiable {
     let sha256: String
     let size: Int64
     let mtime: Double?
-    let status: String
     let createdAt: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, sha256, size, mtime, status
+        case id, sha256, size, mtime
         case originalPath = "original_path"
         case createdAt    = "created_at"
     }
 
-    var isDeleted: Bool { status == "deleted" }
     var formattedSize: String {
         ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
     }
@@ -125,13 +121,7 @@ struct UploadResponse: Codable {
 // MARK: - SyncResponse  (POST /sync)
 
 struct SyncResponse: Codable {
-    let markedDeleted: [String]
-    let deletedCount: Int
-
-    enum CodingKeys: String, CodingKey {
-        case markedDeleted = "marked_deleted"
-        case deletedCount  = "deleted_count"
-    }
+    let synced: Bool
 }
 
 // MARK: - CleanupResponse  (POST /backups/{label}/cleanup)
