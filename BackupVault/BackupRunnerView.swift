@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct BackupRunnerSheet: View {
-    @EnvironmentObject var api: APIService
+    @EnvironmentObject var api:      APIService
+    @EnvironmentObject var schedule: ScheduleManager
     @Environment(\.dismiss) private var dismiss
 
     let profile: BackupProfile
@@ -127,7 +128,11 @@ struct BackupRunnerSheet: View {
                     .tint(.orange)
                 }
                 Button(runner.status == .idle ? "runner.start" : "runner.run_again") {
-                    Task { await runner.run(profile: profile) }
+                    Task {
+                        schedule.registerManualRunner(runner, profileId: profile.id)
+                        await runner.run(profile: profile)
+                        schedule.clearManualRunner(runner)
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(runner.status == .running)

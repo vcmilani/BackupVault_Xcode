@@ -58,35 +58,23 @@ struct MenuBarView: View {
 
             Divider()
 
-            // ── Active Schedule Progress ────────────────────────────
+            // ── Active Manual Progress ───────────────────────────────
+            if let runner = schedule.activeManualRunner, runner.status == .running {
+                let profile = store.profiles.first { $0.id == schedule.activeManualProfileId }
+                runnerCard(runner: runner, name: profile?.name, badge: "menubar.manual_badge")
+                Divider()
+            }
+
+            // ── Active Queue Progress ────────────────────────────────
+            if let queue = schedule.activeQueue, queue.status == .running {
+                queueCard(queue: queue)
+                Divider()
+            }
+
+            // ── Active Schedule Progress ─────────────────────────────
             if let runner = schedule.activeRunner, runner.status == .running {
                 let profile = store.profiles.first { $0.id == schedule.currentProfileId }
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .foregroundStyle(.blue)
-                            .symbolEffect(.pulse)
-                        Text(profile?.name ?? "BackupVault")
-                            .font(.caption.weight(.semibold))
-                            .lineLimit(1)
-                        Spacer()
-                        Text("\(Int(runner.progress * 100))%")
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                    ProgressView(value: runner.progress)
-                        .progressViewStyle(.linear)
-                    if !runner.currentFile.isEmpty {
-                        Text(runner.currentFile)
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Color.blue.opacity(0.06))
+                runnerCard(runner: runner, name: profile?.name, badge: nil)
                 Divider()
             }
 
@@ -202,6 +190,81 @@ struct MenuBarView: View {
                 await api.fetchBackups()
             }
         }
+    }
+
+    // MARK: - Progress Cards
+
+    @ViewBuilder
+    private func runnerCard(runner: BackupRunner, name: String?, badge: String?) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.up.circle.fill")
+                    .foregroundStyle(.blue)
+                    .symbolEffect(.pulse)
+                Text(name ?? "BackupVault")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                if let badge {
+                    Text(LocalizedStringKey(badge))
+                        .font(.caption2)
+                        .foregroundStyle(.blue)
+                        .padding(.horizontal, 5).padding(.vertical, 2)
+                        .background(Color.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                }
+                Spacer()
+                Text("\(Int(runner.progress * 100))%")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            ProgressView(value: runner.progress)
+                .progressViewStyle(.linear)
+            if !runner.currentFile.isEmpty {
+                Text(runner.currentFile)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color.blue.opacity(0.06))
+    }
+
+    @ViewBuilder
+    private func queueCard(queue: BackupQueue) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "list.bullet.rectangle.fill")
+                    .foregroundStyle(.purple)
+                    .symbolEffect(.pulse)
+                Text("queue.title")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                Text("\(max(0, queue.currentIndex + 1))/\(queue.items.count)")
+                    .font(.caption2)
+                    .foregroundStyle(.purple)
+                    .padding(.horizontal, 5).padding(.vertical, 2)
+                    .background(Color.purple.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                Spacer()
+                Text("\(Int(queue.progress * 100))%")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            ProgressView(value: queue.progress)
+                .progressViewStyle(.linear)
+                .tint(.purple)
+            if let file = queue.currentRunner?.currentFile, !file.isEmpty {
+                Text(file)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color.purple.opacity(0.05))
     }
 }
 

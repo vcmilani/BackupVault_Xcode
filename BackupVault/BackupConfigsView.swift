@@ -3,8 +3,9 @@ import AppKit
 
 // MARK: - Configs View
 struct BackupConfigsView: View {
-    @EnvironmentObject var api:   APIService
-    @EnvironmentObject var store: ConfigStore
+    @EnvironmentObject var api:      APIService
+    @EnvironmentObject var store:    ConfigStore
+    @EnvironmentObject var schedule: ScheduleManager
 
     @State private var selected:    BackupProfile?
     @State private var editing:     BackupProfile?
@@ -110,6 +111,7 @@ struct BackupConfigsView: View {
             BackupQueueSheet()
                 .environmentObject(api)
                 .environmentObject(store)
+                .environmentObject(schedule)
         }
         .alert("mybackups.delete_server_title", isPresented: $showDeleteBackup) {
             Button("common.cancel", role: .cancel) {}

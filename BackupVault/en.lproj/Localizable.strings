@@ -124,6 +124,7 @@
 "menubar.stat.storage"  = "Storage";
 "menubar.refresh"       = "Refresh";
 "menubar.more"          = "+ %d more…";
+"menubar.manual_badge"  = "Manual";
 
 /* Common (additions) */
 "common.delete"  = "Delete";

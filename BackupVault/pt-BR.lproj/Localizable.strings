@@ -153,6 +153,7 @@
 "menubar.stat.storage"  = "Storage";
 "menubar.refresh"       = "Atualizar";
 "menubar.more"          = "+ %d mais…";
+"menubar.manual_badge"  = "Manual";
 
 /* Common (additions) */
 "common.delete"  = "Excluir";

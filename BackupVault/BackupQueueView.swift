@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct BackupQueueSheet: View {
-    @EnvironmentObject var api: APIService
-    @EnvironmentObject var store: ConfigStore
+    @EnvironmentObject var api:      APIService
+    @EnvironmentObject var store:    ConfigStore
+    @EnvironmentObject var schedule: ScheduleManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var selection: Set<UUID> = []
@@ -244,7 +245,11 @@ struct BackupQueueSheet: View {
         let q = BackupQueue(api: api, profiles: profiles)
         queue = q
         phase = .running
-        Task { await q.run() }
+        Task {
+            schedule.registerQueue(q)
+            await q.run()
+            schedule.clearQueue(q)
+        }
     }
 }
 
