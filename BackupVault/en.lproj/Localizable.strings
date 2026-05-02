@@ -84,7 +84,8 @@
 "runner.cancelled"             = "Backup cancelled — version marked as failed.";
 "runner.sync_done"             = "Sync complete";
 "runner.sync_skipped"          = "Sync skipped: %@";
-"runner.summary"               = "Uploaded: %d  Registered: %d  Ignored: %d  Errors: %d";
+"runner.cache_loaded"          = "mtime+size cache: %d files from previous version";
+"runner.summary"               = "Uploaded: %d  Registered: %d  Cached: %d  Ignored: %d  Errors: %d";
 
 /* Version detail */
 "version.detail.files"         = "Files";
@@ -233,6 +234,7 @@
 "runner.close"           = "Close";
 "runner.stat.uploaded"   = "Uploaded";
 "runner.stat.registered" = "Registered";
+"runner.stat.cached"     = "Cached";
 "runner.stat.ignored"    = "Ignored";
 "runner.stat.errors"     = "Errors";
 

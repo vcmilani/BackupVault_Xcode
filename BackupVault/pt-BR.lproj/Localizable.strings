@@ -84,7 +84,8 @@
 "runner.cancelled"             = "Backup cancelado — versão marcada como failed.";
 "runner.sync_done"             = "Sync concluído";
 "runner.sync_skipped"          = "Sync ignorado: %@";
-"runner.summary"               = "Enviados: %d  Registrados: %d  Ignorados: %d  Erros: %d";
+"runner.cache_loaded"          = "Cache mtime+size: %d arquivos da versão anterior";
+"runner.summary"               = "Enviados: %d  Registrados: %d  Cacheados: %d  Ignorados: %d  Erros: %d";
 
 /* Version detail */
 "version.detail.files"         = "Arquivos";
@@ -262,6 +263,7 @@
 "runner.close"           = "Fechar";
 "runner.stat.uploaded"   = "Enviados";
 "runner.stat.registered" = "Registrados";
+"runner.stat.cached"     = "Cacheados";
 "runner.stat.ignored"    = "Ignorados";
 "runner.stat.errors"     = "Erros";
 

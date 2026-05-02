@@ -21,15 +21,13 @@ final class BackupRunner: ObservableObject {
     }
 
     struct Stats {
-        var total = 0, uploaded = 0, registered = 0, ignored = 0, errors = 0
+        var total = 0, uploaded = 0, registered = 0, cached = 0, ignored = 0, errors = 0
     }
 
     private let api: APIService
     private var isCancelled = false
     private var session = URLSession(configuration: .default)
 
-    /// Upload concurrency limit — mirrors Python client --workers default
-    private let maxConcurrentUploads = 4
     /// Retry attempts per file on transient network errors
     private let maxRetries = 3
 
@@ -78,6 +76,10 @@ final class BackupRunner: ObservableObject {
             status = .failed; return
         }
 
+        // 2.5. Fetch previous version cache (mtime+size fast path — no SHA-256 for unchanged files)
+        let cache = await fetchPreviousVersionCache(label: label)
+        if !cache.isEmpty { log(L("runner.cache_loaded", cache.count), .info) }
+
         // 3. Walk filesystem (off main actor — avoids blocking UI for large directories)
         let excludes = profile.excludes
         let fileURLs: [URL]
@@ -124,16 +126,17 @@ final class BackupRunner: ObservableObject {
         }
 
         // 5. Process files with bounded concurrency (TaskGroup)
-        let pairs      = Array(zip(fileURLs, serverPaths))
-        let totalFiles = pairs.count
-        let accumulator = StatsAccumulator()
+        let pairs            = Array(zip(fileURLs, serverPaths))
+        let totalFiles       = pairs.count
+        let accumulator      = StatsAccumulator()
+        let concurrencyLimit = max(1, profile.workers)
 
         await withTaskGroup(of: Void.self) { group in
             var inFlight = 0
             var index    = 0
 
             while index < pairs.count || inFlight > 0 {
-                while inFlight < maxConcurrentUploads && index < pairs.count {
+                while inFlight < concurrencyLimit && index < pairs.count {
                     guard !isCancelled else { break }
                     let (url, serverPath) = pairs[index]
                     let i = index
@@ -145,7 +148,8 @@ final class BackupRunner: ObservableObject {
                         do {
                             let action = try await self.processFileWithRetry(
                                 url: url, label: label,
-                                versionKey: versionKey, serverPath: serverPath
+                                versionKey: versionKey, serverPath: serverPath,
+                                cache: cache
                             )
                             await accumulator.record(action: action)
                         } catch {
@@ -171,6 +175,7 @@ final class BackupRunner: ObservableObject {
                     let s = await accumulator.snapshot()
                     stats.uploaded   = s.uploaded
                     stats.registered = s.registered
+                    stats.cached     = s.cached
                     stats.ignored    = s.ignored
                     stats.errors     = s.errors
                 }
@@ -206,7 +211,7 @@ final class BackupRunner: ObservableObject {
         DockProgress.shared.bounce()
         log("─────────────────────────────────────", .info)
         log(L("runner.summary",
-              stats.uploaded, stats.registered, stats.ignored, stats.errors), .success)
+              stats.uploaded, stats.registered, stats.cached, stats.ignored, stats.errors), .success)
     }
 
     // MARK: - API Helpers
@@ -252,15 +257,37 @@ final class BackupRunner: ObservableObject {
         return versionKey
     }
 
+    /// Fetches the file list from the latest `done` version to build an mtime+size cache.
+    /// Returns an empty dictionary if no previous version exists or on any error.
+    private func fetchPreviousVersionCache(label: String) async -> [String: FileCache] {
+        guard let versions = try? await api.fetchVersions(label: label),
+              let doneVersion = versions.first(where: { $0.isDone })
+        else { return [:] }
+        guard let files = try? await api.fetchFiles(label: label, versionKey: doneVersion.versionKey)
+        else { return [:] }
+        var cache: [String: FileCache] = [:]
+        cache.reserveCapacity(files.count)
+        for file in files {
+            cache[file.originalPath] = FileCache(
+                sha256: file.sha256,
+                mtime:  file.mtime ?? 0,
+                size:   file.size
+            )
+        }
+        return cache
+    }
+
     /// Retries processFile up to maxRetries times with exponential back-off
     private func processFileWithRetry(url: URL, label: String,
-                                      versionKey: String, serverPath: String) async throws -> String {
+                                      versionKey: String, serverPath: String,
+                                      cache: [String: FileCache]) async throws -> String {
         var lastError: Error?
         for attempt in 1...maxRetries {
             guard !isCancelled else { throw CancellationError() }
             do {
                 return try await processFile(url: url, label: label,
-                                             versionKey: versionKey, serverPath: serverPath)
+                                             versionKey: versionKey, serverPath: serverPath,
+                                             cache: cache)
             } catch {
                 lastError = error
                 guard !isCancelled, attempt < maxRetries else { break }
@@ -271,28 +298,49 @@ final class BackupRunner: ObservableObject {
         throw lastError ?? CancellationError()
     }
 
-    /// Streams SHA-256 + uploads via file URL — never loads full file into memory
+    /// Processes one file: mtime+size cache → SHA-256 check → upload/register.
+    /// Fast path skips all disk I/O when mtime+size match the previous version.
     private func processFile(url: URL, label: String,
-                             versionKey: String, serverPath: String) async throws -> String {
-        guard !isCancelled else { throw CancellationError() }
-        let (sha256, size) = try await computeSHA256Streaming(url: url)
+                             versionKey: String, serverPath: String,
+                             cache: [String: FileCache]) async throws -> String {
         guard !isCancelled else { throw CancellationError() }
 
-        let mtime: Double = {
-            if let date = try? FileManager.default
-                .attributesOfItem(atPath: url.path)[.modificationDate] as? Date {
-                return date.timeIntervalSince1970
+        // Stat the file — cheap metadata read, no file content I/O
+        let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+        let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+        let size  = (attrs[.size] as? NSNumber).map { Int64(truncatingIfNeeded: $0.int64Value) } ?? 0
+
+        // Fast path: mtime+size match previous version → skip SHA-256 and /check entirely
+        if let cached = cache[serverPath], cached.mtime == mtime, cached.size == size {
+            var req = try api.buildRequest("/upload", method: "POST", body: nil)
+            req.timeoutInterval = 300
+            let pathB64 = Data(serverPath.utf8).base64EncodedString()
+            req.setValue(label,           forHTTPHeaderField: "X-Backup-Label")
+            req.setValue(versionKey,      forHTTPHeaderField: "X-Version-Key")
+            req.setValue(pathB64,         forHTTPHeaderField: "X-Original-Path")
+            req.setValue(String(mtime),   forHTTPHeaderField: "X-Mtime")
+            req.setValue(cached.sha256,   forHTTPHeaderField: "X-Content-Sha256")
+            let (respData, response) = try await session.data(for: req)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                let msg = String(data: respData, encoding: .utf8) ?? "(sem mensagem)"
+                throw NSError(domain: "BackupVault", code: http.statusCode,
+                              userInfo: [NSLocalizedDescriptionKey:
+                                "HTTP \(http.statusCode) — \(msg.prefix(300))"])
             }
-            return 0
-        }()
+            return "cached"
+        }
 
-        // Check
+        // Slow path: compute SHA-256 then check with server
+        guard !isCancelled else { throw CancellationError() }
+        let (sha256, _) = try await computeSHA256Streaming(url: url)
+        guard !isCancelled else { throw CancellationError() }
+
         let checkBody = try JSONSerialization.data(withJSONObject: [
             "backup_label": label,
             "version_key":  versionKey,
             "original_path": serverPath,
             "sha256": sha256,
-            "size":   size,
+            "size":   Int(size),
             "mtime":  mtime
         ] as [String: Any])
         let checkReq = try api.buildRequest("/check", method: "POST", body: checkBody)
@@ -305,8 +353,8 @@ final class BackupRunner: ObservableObject {
 
         guard !isCancelled else { throw CancellationError() }
 
-        // Build upload request
         var req = try api.buildRequest("/upload", method: "POST", body: nil)
+        req.timeoutInterval = 300
         let pathB64 = Data(serverPath.utf8).base64EncodedString()
         req.setValue(label,         forHTTPHeaderField: "X-Backup-Label")
         req.setValue(versionKey,    forHTTPHeaderField: "X-Version-Key")
@@ -316,7 +364,6 @@ final class BackupRunner: ObservableObject {
         let (respData, response): (Data, URLResponse)
         if !contentExists {
             req.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
-            // Upload directly from file — avoids loading large files into memory
             (respData, response) = try await session.upload(for: req, fromFile: url)
         } else {
             req.setValue(sha256, forHTTPHeaderField: "X-Content-Sha256")
@@ -395,11 +442,20 @@ final class BackupRunner: ObservableObject {
     }
 }
 
+// MARK: - FileCache (mtime+size fast path)
+
+private struct FileCache {
+    let sha256: String
+    let mtime: Double
+    let size: Int64
+}
+
 // MARK: - Stats Accumulator (actor — thread-safe parallel counting)
 
 private actor StatsAccumulator {
     private var uploaded   = 0
     private var registered = 0
+    private var cached     = 0
     private var ignored    = 0
     private var errors     = 0
 
@@ -407,15 +463,17 @@ private actor StatsAccumulator {
         switch action {
         case "upload":   uploaded   += 1
         case "register": registered += 1
+        case "cached":   cached     += 1
         default:         ignored    += 1
         }
     }
 
     func recordError() { errors += 1 }
 
-    struct Snapshot { var uploaded, registered, ignored, errors: Int }
+    struct Snapshot { var uploaded, registered, cached, ignored, errors: Int }
     func snapshot() -> Snapshot {
-        Snapshot(uploaded: uploaded, registered: registered, ignored: ignored, errors: errors)
+        Snapshot(uploaded: uploaded, registered: registered, cached: cached,
+                 ignored: ignored, errors: errors)
     }
 }
 
