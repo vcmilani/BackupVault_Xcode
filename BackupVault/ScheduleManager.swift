@@ -20,6 +20,14 @@ final class ScheduleManager: ObservableObject {
     private weak var store: ConfigStore?
     private weak var power: PowerMonitor?
     @Published var activeRunner: BackupRunner?
+
+    // Manual single-run tracking
+    @Published var activeManualRunner: BackupRunner?
+    @Published var activeManualProfileId: UUID?
+
+    // Queue tracking
+    @Published var activeQueue: BackupQueue?
+
     private var timer: Timer?
 
     init() {}
@@ -108,6 +116,30 @@ final class ScheduleManager: ObservableObject {
         activeRunner = nil
         currentProfileId = nil
         isRunningScheduled = false
+    }
+
+    // MARK: - Manual Run Registration
+
+    func registerManualRunner(_ runner: BackupRunner, profileId: UUID) {
+        activeManualRunner  = runner
+        activeManualProfileId = profileId
+    }
+
+    func clearManualRunner(_ runner: BackupRunner) {
+        guard activeManualRunner === runner else { return }
+        activeManualRunner  = nil
+        activeManualProfileId = nil
+    }
+
+    // MARK: - Queue Registration
+
+    func registerQueue(_ queue: BackupQueue) {
+        activeQueue = queue
+    }
+
+    func clearQueue(_ queue: BackupQueue) {
+        guard activeQueue === queue else { return }
+        activeQueue = nil
     }
 
     // MARK: - Helpers

@@ -94,8 +94,8 @@ struct SettingsView: View {
     // MARK: - Server Tab
     var serverTab: some View {
         Form {
-            Section("Conexão") {
-                LabeledContent("URL do Servidor") {
+            Section(L("settings.connection")) {
+                LabeledContent(L("settings.server_url")) {
                     TextField("http://192.168.1.100:8000", text: $api.serverURL)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 280)
@@ -103,7 +103,7 @@ struct SettingsView: View {
                         .onChange(of: api.serverURL) { _,_ in testMsg = nil }
                 }
 
-                LabeledContent("API Key") {
+                LabeledContent(L("settings.api_key")) {
                     HStack {
                         if showKey {
                             TextField("Vazio = sem autenticação", text: $api.apiKey)
@@ -114,14 +114,14 @@ struct SettingsView: View {
                                 .textFieldStyle(.roundedBorder)
                                 .frame(width: 240)
                         }
-                        Button(showKey ? "Ocultar" : "Mostrar") {
+                        Button(showKey ? L("settings.hide") : L("settings.show")) {
                             showKey.toggle()
                         }
                         .font(.caption)
                     }
                 }
 
-                LabeledContent("Status Atual") {
+                LabeledContent(L("settings.current_status")) {
                     HStack(spacing: 8) {
                         ZStack {
                             Circle()
@@ -173,7 +173,7 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Dicas de Configuração") {
+            Section(L("settings.tips_title")) {
                 VStack(alignment: .leading, spacing: 8) {
                     SettingsTip(icon: "key.fill",      color: .orange,  text: "A API Key deve ser a mesma definida na variável BACKUP_API_KEY do servidor.")
                     SettingsTip(icon: "network",        color: .blue,    text: "Use o IP local da Raspberry Pi (ex: 192.168.1.100) e porta 8000.")
@@ -189,9 +189,12 @@ struct SettingsView: View {
     var aboutTab: some View {
         Form {
             Section("BackupVault para macOS") {
-                LabeledContent("settings.about.version", value: "2.0.0")
-                LabeledContent("Mínimo macOS", value: "14.0 (Sonoma)")
-                LabeledContent("Servidor", value: "FastAPI + SQLite + SHA-256")
+                LabeledContent("settings.about.version", value: "2.3.0")
+                if !api.serverVersion.isEmpty {
+                    LabeledContent(L("settings.about.server_version"), value: api.serverVersion)
+                }
+                LabeledContent(L("settings.about.min_macos"), value: "14.0 (Sonoma)")
+                LabeledContent(L("settings.about.server_stack"), value: "FastAPI + SQLite + SHA-256")
             }
             Section("Repositório") {
                 LabeledContent("GitHub") {

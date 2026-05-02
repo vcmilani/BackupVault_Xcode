@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct BackupQueueSheet: View {
-    @EnvironmentObject var api: APIService
-    @EnvironmentObject var store: ConfigStore
+    @EnvironmentObject var api:      APIService
+    @EnvironmentObject var store:    ConfigStore
+    @EnvironmentObject var schedule: ScheduleManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var selection: Set<UUID> = []
@@ -53,7 +54,7 @@ struct BackupQueueSheet: View {
 
             // Actions
             HStack {
-                Button("Fechar") { dismiss() }
+                Button("common.close") { dismiss() }
                 Spacer()
 
                 if phase == .selecting {
@@ -71,14 +72,14 @@ struct BackupQueueSheet: View {
                 }
 
                 if phase == .running, let queue {
-                    Button("Parar Fila") {
+                    Button("queue.stop") {
                         queue.cancel()
                     }
                     .buttonStyle(.bordered).tint(.orange)
                 }
 
                 if phase == .finished {
-                    Button("Executar Novamente") {
+                    Button("queue.run_again") {
                         startQueue()
                     }
                     .buttonStyle(.borderedProminent)
@@ -105,7 +106,7 @@ struct BackupQueueSheet: View {
                         .font(.largeTitle).foregroundStyle(.secondary)
                     Text("queue.none_available")
                         .font(.headline)
-                    Text("Crie pelo menos uma configuração ativa, com label e pasta definidos.")
+                    Text("queue.none_hint")
                         .font(.caption).foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                     Spacer()
@@ -188,11 +189,11 @@ struct BackupQueueSheet: View {
             if queue.status == .done || queue.status == .cancelled {
                 Divider()
                 HStack(spacing: 0) {
-                    ResultStat(value: "\(queue.doneCount)",   label: "Concluídos")
+                    ResultStat(value: "\(queue.doneCount)",   label: "queue.stat.done")
                     Divider()
-                    ResultStat(value: "\(queue.failedCount)", label: "Falhos")
+                    ResultStat(value: "\(queue.failedCount)", label: "queue.stat.failed")
                     Divider()
-                    ResultStat(value: "\(queue.items.count - queue.doneCount - queue.failedCount)", label: "Outros")
+                    ResultStat(value: "\(queue.items.count - queue.doneCount - queue.failedCount)", label: "queue.stat.other")
                 }
                 .frame(height: 54)
             }
@@ -208,11 +209,11 @@ struct BackupQueueSheet: View {
     var headerSubtitle: String {
         switch phase {
         case .selecting:
-            return "\(selection.count) de \(availableProfiles.count) selecionada(s)"
+            return L("queue.subtitle.selecting", selection.count, availableProfiles.count)
         case .running:
-            return "\(queue?.items.count ?? 0) na fila"
+            return L("queue.subtitle.running", queue?.items.count ?? 0)
         case .finished:
-            return "Concluído"
+            return L("queue.subtitle.done")
         }
     }
 
@@ -244,7 +245,11 @@ struct BackupQueueSheet: View {
         let q = BackupQueue(api: api, profiles: profiles)
         queue = q
         phase = .running
-        Task { await q.run() }
+        Task {
+            schedule.registerQueue(q)
+            await q.run()
+            schedule.clearQueue(q)
+        }
     }
 }
 

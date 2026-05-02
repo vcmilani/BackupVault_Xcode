@@ -75,9 +75,9 @@ struct DashboardView: View {
                         }
 
                         VStack(spacing: 0) {
-                            ForEach(Array(api.backups.prefix(8).enumerated()), id: \.offset) { idx, backup in
+                            ForEach(Array(api.backups.enumerated()), id: \.offset) { idx, backup in
                                 BackupRowView(backup: backup)
-                                if idx < min(api.backups.count, 8) - 1 {
+                                if idx < api.backups.count - 1 {
                                     Divider().padding(.leading, 52)
                                 }
                             }
@@ -189,7 +189,7 @@ struct BackupRowView: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("\(backup.versionCount)")
                         .font(.subheadline.weight(.medium))
-                    Text("versões")
+                    Text("dashboard.stat.versions_label")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -204,7 +204,7 @@ struct BackupRowView: View {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(date.formatted(.relative(presentation: .named)))
                             .font(.caption.weight(.medium))
-                        Text("última versão")
+                        Text("dashboard.last_version")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }

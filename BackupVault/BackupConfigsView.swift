@@ -3,8 +3,9 @@ import AppKit
 
 // MARK: - Configs View
 struct BackupConfigsView: View {
-    @EnvironmentObject var api:   APIService
-    @EnvironmentObject var store: ConfigStore
+    @EnvironmentObject var api:      APIService
+    @EnvironmentObject var store:    ConfigStore
+    @EnvironmentObject var schedule: ScheduleManager
 
     @State private var selected:    BackupProfile?
     @State private var editing:     BackupProfile?
@@ -100,7 +101,7 @@ struct BackupConfigsView: View {
                     PlaceholderView(
                         title: "mybackups.select",
                         icon: "slider.horizontal.3",
-                        description: "Escolha ou crie uma nova configuração de backup"
+                        description: "mybackups.select_hint"
                     )
                 }
             }
@@ -110,8 +111,9 @@ struct BackupConfigsView: View {
             BackupQueueSheet()
                 .environmentObject(api)
                 .environmentObject(store)
+                .environmentObject(schedule)
         }
-        .alert("Excluir backup do servidor?", isPresented: $showDeleteBackup) {
+        .alert("mybackups.delete_server_title", isPresented: $showDeleteBackup) {
             Button("common.cancel", role: .cancel) {}
             Button("mybackups.delete_server", role: .destructive) {
                 guard let label = selected?.label else { return }
@@ -126,7 +128,7 @@ struct BackupConfigsView: View {
             }
         } message: {
             let name = selected?.label ?? ""
-            Text("Todos os dados e versões de \"\(name)\" serão apagados permanentemente do servidor.")
+            Text(L("mybackups.delete_server_msg", name))
         }
         .sheet(isPresented: $showAdd) {
             ProfileEditorSheet(profile: nil, defaultServer: api.serverURL) { p in
@@ -139,14 +141,14 @@ struct BackupConfigsView: View {
                 if selected?.id == updated.id { selected = updated }
             }
         }
-        .alert("Excluir configuração?", isPresented: $showDelete) {
+        .alert("mybackups.delete_config_title", isPresented: $showDelete) {
             Button("common.cancel", role: .cancel) {}
             Button("common.delete",  role: .destructive) {
                 if let p = selected { store.delete(p); selected = nil }
             }
         } message: {
             let name = selected?.name ?? ""
-            Text("\"\(name)\" será removida permanentemente.")
+            Text(L("mybackups.delete_config_msg", name))
         }
     }
 }
@@ -167,7 +169,7 @@ struct ProfileListRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(profile.name)
                     .font(.subheadline.weight(.medium)).lineLimit(1)
-                Text(profile.label.isEmpty ? "sem label" : profile.label)
+                Text(profile.label.isEmpty ? L("mybackups.no_label") : profile.label)
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer()
@@ -207,7 +209,7 @@ struct ProfileDetailView: View {
                                     .background(.secondary.opacity(0.2), in: Capsule())
                             }
                         }
-                        Text("Label: \(profile.label.isEmpty ? "não configurado" : profile.label)")
+                        Text("Label: \(profile.label.isEmpty ? L("mybackups.not_configured") : profile.label)")
                             .font(.subheadline).foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -241,24 +243,24 @@ struct ProfileDetailView: View {
                 }
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
-                    ProfileInfoCard(title: "Pasta de Origem", icon: "folder.fill", iconColor: .blue) {
-                        Text(profile.sourcePath.isEmpty ? "Não configurado" : profile.sourcePath)
+                    ProfileInfoCard(title: L("card.source_folder"), icon: "folder.fill", iconColor: .blue) {
+                        Text(profile.sourcePath.isEmpty ? L("card.not_configured") : profile.sourcePath)
                             .font(.body.monospaced()).lineLimit(3)
                             .foregroundStyle(profile.sourcePath.isEmpty ? .secondary : .primary)
                             .textSelection(.enabled)
                     }
-                    ProfileInfoCard(title: "Servidor", icon: "network", iconColor: .green) {
+                    ProfileInfoCard(title: L("card.server"), icon: "network", iconColor: .green) {
                         Text(profile.serverOverride.isEmpty ? defaultServer : profile.serverOverride)
                             .font(.body.monospaced()).lineLimit(2)
                             .textSelection(.enabled)
                     }
-                    ProfileInfoCard(title: "Workers Paralelos", icon: "cpu", iconColor: .purple) {
+                    ProfileInfoCard(title: L("card.workers"), icon: "cpu", iconColor: .purple) {
                         Text("\(profile.workers) workers")
                             .font(.title3.bold())
                         Text(workersDescription(profile.workers))
                             .font(.caption).foregroundStyle(.secondary)
                     }
-                    ProfileInfoCard(title: "Prefixo no Servidor", icon: "folder.badge.questionmark", iconColor: .orange) {
+                    ProfileInfoCard(title: L("card.prefix"), icon: "folder.badge.questionmark", iconColor: .orange) {
                         Text(profile.prefix.isEmpty ? L("common.none") : profile.prefix)
                             .font(.body.monospaced())
                             .foregroundStyle(profile.prefix.isEmpty ? .secondary : .primary)
@@ -267,13 +269,13 @@ struct ProfileDetailView: View {
 
                 // Excludes
                 if !profile.excludes.isEmpty {
-                    ProfileInfoCard(title: "Exclusões (\(profile.excludes.count))", icon: "xmark.circle.fill", iconColor: .red) {
+                    ProfileInfoCard(title: String(format: L("card.excludes"), profile.excludes.count), icon: "xmark.circle.fill", iconColor: .red) {
                         FlowTagsView(tags: profile.excludes, color: .red)
                     }
                 }
 
                 // CLI command preview
-                ProfileInfoCard(title: "Comando equivalente (Python)", icon: "terminal.fill", iconColor: .secondary) {
+                ProfileInfoCard(title: L("card.cli"), icon: "terminal.fill", iconColor: .secondary) {
                     Text(profile.cliCommand(defaultServer: defaultServer))
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
@@ -301,10 +303,10 @@ struct ProfileDetailView: View {
 
     func workersDescription(_ n: Int) -> String {
         switch n {
-        case 1...2: return "Ideal para Pi com SD ou arquivos grandes"
-        case 3...5: return "Ideal para Pi com HD externo USB"
-        case 6...8: return "Ideal para Pi com SSD"
-        default:    return "Alto paralelismo — muitos arquivos pequenos"
+        case 1...2: return L("card.workers_hint_1")
+        case 3...5: return L("card.workers_hint_2")
+        case 6...8: return L("card.workers_hint_3")
+        default:    return L("card.workers_hint_4")
         }
     }
 }
@@ -410,37 +412,37 @@ struct ProfileEditorSheet: View {
             Group {
                 if tab == 0 {
                     Form {
-                        Section("Identificação") {
-                            TextField("Nome da configuração", text: $draft.name)
-                            TextField("Label (ex: macbook-joao)", text: $draft.label)
+                        Section("editor.section.identification") {
+                            TextField("editor.field.name", text: $draft.name)
+                            TextField("editor.field.label", text: $draft.label)
                                 .font(.body.monospaced())
-                            Toggle("Ativa", isOn: $draft.enabled)
+                            Toggle("editor.field.enabled", isOn: $draft.enabled)
                         }
-                        Section("Origem") {
+                        Section("editor.section.source") {
                             HStack {
-                                TextField("Pasta de origem", text: $draft.sourcePath)
+                                TextField("editor.field.source_path", text: $draft.sourcePath)
                                     .font(.body.monospaced())
-                                Button("Escolher…") { pickFolder() }.fixedSize()
+                                Button("editor.field.pick") { pickFolder() }.fixedSize()
                             }
-                            TextField("Prefixo no servidor (opcional)", text: $draft.prefix)
+                            TextField("editor.field.prefix", text: $draft.prefix)
                                 .font(.body.monospaced())
                         }
                     }
                     .formStyle(.grouped)
                 } else if tab == 1 {
                     Form {
-                        Section("Servidor") {
-                            TextField("URL do servidor (vazio = padrão global)", text: $draft.serverOverride)
+                        Section("editor.section.server") {
+                            TextField("editor.field.server_url", text: $draft.serverOverride)
                                 .font(.body.monospaced())
                             if draft.serverOverride.isEmpty {
-                                Text("Usando padrão: \(defaultServer)")
+                                Text(L("editor.field.server_using_default", defaultServer))
                                     .font(.caption).foregroundStyle(.secondary)
                             } else {
-                                Text("Usando: \(draft.serverOverride)")
+                                Text(L("editor.field.server_using", draft.serverOverride))
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                         }
-                        Section("Performance") {
+                        Section("editor.section.performance") {
                             HStack {
                                 Text("editor.workers_label")
                                 Spacer()
@@ -454,7 +456,7 @@ struct ProfileEditorSheet: View {
                                         if v > 16 { draft.workers = 16 }
                                     }
                             }
-                            Text("Entre 1 e 16. \(workersHint(draft.workers))")
+                            Text("\(L("editor.workers_range")) \(workersHint(draft.workers))")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
@@ -475,8 +477,8 @@ struct ProfileEditorSheet: View {
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = false
-        panel.title = "Selecione a pasta de origem"
-        panel.prompt = "Selecionar"
+        panel.title = L("editor.panel.title")
+        panel.prompt = L("editor.panel.prompt")
         NSApp.activate(ignoringOtherApps: true)
         // begin (non-blocking) lets SwiftUI process state changes properly
         panel.begin { response in
@@ -487,10 +489,10 @@ struct ProfileEditorSheet: View {
 
     func workersHint(_ n: Int) -> String {
         switch n {
-        case 1...2: return "Recomendado para Pi com SD ou arquivos grandes (>100 MB)"
-        case 3...5: return "Recomendado para Pi com HD externo USB"
-        case 6...8: return "Recomendado para Pi com SSD"
-        default:    return "Alto paralelismo — ideal para muitos arquivos pequenos"
+        case 1...2: return L("editor.workers_hint_1")
+        case 3...5: return L("editor.workers_hint_2")
+        case 6...8: return L("editor.workers_hint_3")
+        default:    return L("editor.workers_hint_4")
         }
     }
 }
@@ -507,13 +509,13 @@ struct ExcludesEditor: View {
             HStack {
                 Text("editor.excludes.title").font(.headline)
                 Spacer()
-                Text("\(local.count) itens")
+                Text(L("editor.excludes.count", local.count))
                     .font(.caption).foregroundStyle(.secondary)
             }
             .padding(16)
             Divider()
             HStack {
-                TextField("Adicionar exclusão (ex: node_modules)", text: $newExclude)
+                TextField("editor.excludes.placeholder", text: $newExclude)
                     .textFieldStyle(.roundedBorder)
                     .font(.body.monospaced())
                     .onSubmit(add)

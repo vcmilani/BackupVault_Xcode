@@ -1,162 +1,178 @@
 import Foundation
-import Combine
+
+// MARK: - APIService-only response types
+
+struct HealthResponse: Decodable {
+    let status: String
+    let version: String
+    let time: String
+}
+
+struct BackupDeletedResponse: Decodable {
+    let status: String
+    let label: String
+}
+
+struct VersionDeletedResponse: Decodable {
+    let status: String
+    let versionKey: String
+    let filesRemovedFromStorage: Int
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case versionKey               = "version_key"
+        case filesRemovedFromStorage  = "files_removed_from_storage"
+    }
+}
+
+// MARK: - Backoff
+
+struct BackoffState {
+    var failureCount: Int = 0
+    var nextRetry: Date?  = nil
+
+    var humanReadable: String {
+        guard let next = nextRetry else { return "" }
+        let secs = Int(next.timeIntervalSinceNow)
+        if secs <= 0 { return L("backoff.ready") }
+        return L("backoff.next", secs)
+    }
+}
+
+// MARK: - APIService
 
 @MainActor
 final class APIService: ObservableObject {
-
-    // MARK: - Persisted Settings
-    @Published var serverURL: String {
-        didSet { UserDefaults.standard.set(serverURL, forKey: "serverURL") }
-    }
-    @Published var apiKey: String {
-        didSet { UserDefaults.standard.set(apiKey, forKey: "apiKey") }
-    }
-
-    // MARK: - Connection State
+    @Published var serverURL: String = UserDefaults.standard.string(forKey: "server_url") ?? "http://192.168.1.100:8000"
+    @Published var apiKey:    String = UserDefaults.standard.string(forKey: "api_key")    ?? ""
     @Published var isConnected: Bool = false
-    @Published var connectionError: String?
-
-    // MARK: - Backoff (avoid hammering offline servers)
-    @Published var backoff = BackoffPolicy()
-
-    // MARK: - Data
+    @Published var connectionError: String? = nil
+    @Published var isLoadingBackups: Bool = false
     @Published var backups: [BackupSummary] = []
-    @Published var isLoadingBackups = false
-    @Published var loadError: String?
+    @Published var serverVersion: String = ""
+    @Published var backoff = BackoffState()
 
-    // MARK: - Init
-    init() {
-        // Migrate from old bundle ID if needed
-        let defaults = UserDefaults.standard
-        if defaults.string(forKey: "serverURL") == nil {
-            let oldBundles = ["com.backupvault.app", "BackupVault"]
-            for old in oldBundles {
-                if let oldDefaults = UserDefaults(suiteName: old),
-                   let url = oldDefaults.string(forKey: "serverURL"), !url.isEmpty {
-                    defaults.set(url, forKey: "serverURL")
-                    if let key = oldDefaults.string(forKey: "apiKey") {
-                        defaults.set(key, forKey: "apiKey")
-                    }
-                    break
-                }
-                // Also try reading from plist directly
-                let plistPath = NSHomeDirectory() + "/Library/Preferences/\(old).plist"
-                if let dict = NSDictionary(contentsOfFile: plistPath) as? [String: Any],
-                   let url = dict["serverURL"] as? String, !url.isEmpty {
-                    defaults.set(url, forKey: "serverURL")
-                    if let key = dict["apiKey"] as? String {
-                        defaults.set(key, forKey: "apiKey")
-                    }
-                    break
-                }
-            }
-        }
-        self.serverURL = defaults.string(forKey: "serverURL") ?? "http://localhost:8000"
-        self.apiKey    = defaults.string(forKey: "apiKey")    ?? ""
+    var globalStats: GlobalStats {
+        GlobalStats(
+            totalBackups:  backups.count,
+            totalVersions: backups.reduce(0) { $0 + $1.versionCount },
+            totalFiles:    0,
+            totalSize:     backups.reduce(0) { $0 + $1.totalSizeBytes }
+        )
     }
 
-    /// Settings persist automatically via @Published didSet — this is a no-op convenience method.
-    func saveSettings() {}
-
-    // MARK: - Request Builder
-    func buildRequest(_ path: String, method: String = "GET", body: Data? = nil) throws -> URLRequest {
-        let base = serverURL.hasSuffix("/") ? String(serverURL.dropLast()) : serverURL
-        guard let url = URL(string: base + path) else { throw AppError.invalidURL }
-        var req = URLRequest(url: url, timeoutInterval: 20)
-        req.httpMethod = method
-        if !apiKey.isEmpty { req.setValue(apiKey, forHTTPHeaderField: "X-API-Key") }
-        if let body {
-            req.httpBody = body
-            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        }
-        return req
-    }
-
-    private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
-        let decoder = JSONDecoder()
-        return try decoder.decode(type, from: data)
+    func saveSettings() {
+        UserDefaults.standard.set(serverURL, forKey: "server_url")
+        UserDefaults.standard.set(apiKey,    forKey: "api_key")
     }
 
     // MARK: - Health
-    func checkHealth(forceTry: Bool = false) async {
-        // Respect backoff window unless explicitly forced (user-initiated)
-        if !forceTry && !backoff.shouldAttempt {
-            return
-        }
+
+    func checkHealth() async {
         do {
-            let req = try buildRequest("/health")
-            let (_, resp) = try await URLSession.shared.data(for: req)
-            let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
-            isConnected = (200..<300).contains(code)
-            connectionError = isConnected ? nil : "HTTP \(code) — \(serverURL)"
-            if isConnected {
-                backoff.recordSuccess()
+            let req  = try buildRequest("/health", method: "GET", body: nil)
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            if let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) {
+                let health = try JSONDecoder().decode(HealthResponse.self, from: data)
+                isConnected    = true
+                serverVersion  = health.version
+                connectionError = nil
+                backoff.failureCount = 0
+                backoff.nextRetry    = nil
             } else {
-                backoff.recordFailure()
+                throw URLError(.badServerResponse)
             }
         } catch {
-            isConnected = false
-            let msg = (error as NSError).code == -1009
-                ? "Servidor inacessível em \(serverURL)."
-                : error.localizedDescription
-            connectionError = msg
-            backoff.recordFailure()
+            isConnected     = false
+            connectionError = error.localizedDescription
+            backoff.failureCount += 1
         }
     }
 
     // MARK: - Backups
+
     func fetchBackups() async {
         isLoadingBackups = true
-        loadError = nil
+        defer { isLoadingBackups = false }
         do {
-            let req = try buildRequest("/backups")
+            let req = try buildRequest("/backups", method: "GET", body: nil)
             let (data, _) = try await URLSession.shared.data(for: req)
-            backups = try decode([BackupSummary].self, from: data)
+            backups = try JSONDecoder().decode([BackupSummary].self, from: data)
         } catch {
-            loadError = error.localizedDescription
+            // Silently fail — caller can check isConnected
         }
-        isLoadingBackups = false
     }
 
-    // MARK: - Versions
-    func fetchVersions(label: String) async throws -> [BackupVersion] {
-        let req = try buildRequest("/backups/\(label.urlEncoded)/versions")
-        let (data, _) = try await URLSession.shared.data(for: req)
-        return try decode([BackupVersion].self, from: data)
-    }
-
-    func deleteVersion(label: String, versionKey: String) async throws {
-        let req = try buildRequest("/backups/\(label.urlEncoded)/versions/\(versionKey.urlEncoded)", method: "DELETE")
-        _ = try await URLSession.shared.data(for: req)
-    }
-
-    // MARK: - Files
-    func fetchFiles(label: String, versionKey: String) async throws -> [VersionFile] {
-        let params = "?backup_label=\(label.urlEncoded)&version_key=\(versionKey.urlEncoded)"
-        let req = try buildRequest("/files" + params)
-        let (data, _) = try await URLSession.shared.data(for: req)
-        return try decode([VersionFile].self, from: data)
-    }
-
-    // MARK: - Cleanup
-    // MARK: - Delete Backup
     func deleteBackup(label: String) async throws {
-        let req = try buildRequest("/backups/\(label.urlEncoded)", method: "DELETE")
+        let req = try buildRequest("/backups/\(label.urlSafe)", method: "DELETE", body: nil)
         let (data, resp) = try await URLSession.shared.data(for: req)
         if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             let msg = String(data: data, encoding: .utf8) ?? ""
-            throw NSError(domain: "BackupVault", code: http.statusCode,
-                          userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode) — \(msg)"])
+            throw apiError(http.statusCode, msg)
         }
     }
 
+    // MARK: - Versions
+
+    func fetchVersions(label: String) async throws -> [BackupVersion] {
+        let req = try buildRequest("/backups/\(label.urlSafe)/versions", method: "GET", body: nil)
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw apiError(http.statusCode, String(data: data, encoding: .utf8) ?? "")
+        }
+        return try JSONDecoder().decode([BackupVersion].self, from: data)
+    }
+
+    func fetchVersionDetail(label: String, versionKey: String) async throws -> BackupVersion {
+        let req = try buildRequest(
+            "/backups/\(label.urlSafe)/versions/\(versionKey.urlSafe)",
+            method: "GET", body: nil)
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw apiError(http.statusCode, String(data: data, encoding: .utf8) ?? "")
+        }
+        return try JSONDecoder().decode(BackupVersion.self, from: data)
+    }
+
+    func deleteVersion(label: String, versionKey: String) async throws -> VersionDeletedResponse {
+        let req = try buildRequest(
+            "/backups/\(label.urlSafe)/versions/\(versionKey.urlSafe)",
+            method: "DELETE", body: nil)
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw apiError(http.statusCode, String(data: data, encoding: .utf8) ?? "")
+        }
+        return try JSONDecoder().decode(VersionDeletedResponse.self, from: data)
+    }
+
+    // MARK: - Files
+
+    func fetchFiles(label: String, versionKey: String) async throws -> [VersionFile] {
+        let escaped = versionKey.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? versionKey
+        let req = try buildRequest(
+            "/files?backup_label=\(label.urlSafe)&version_key=\(escaped)",
+            method: "GET", body: nil)
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw apiError(http.statusCode, String(data: data, encoding: .utf8) ?? "")
+        }
+        return try JSONDecoder().decode([VersionFile].self, from: data)
+    }
+
+    // MARK: - Cleanup
+
     func cleanup(label: String, keep: Int) async throws -> CleanupResult {
-        let body = try JSONSerialization.data(withJSONObject: ["backup_label": label, "keep": keep])
-        let req = try buildRequest("/backups/\(label.urlEncoded)/cleanup", method: "POST", body: body)
-        let (data, _) = try await URLSession.shared.data(for: req)
-        var result = try decode(CleanupResult.self, from: data)
-        result.label = label
-        return result
+        let body = try JSONSerialization.data(withJSONObject: [
+            "backup_label": label, "keep": keep
+        ] as [String: Any])
+        let req = try buildRequest("/backups/\(label.urlSafe)/cleanup", method: "POST", body: body)
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw apiError(http.statusCode, String(data: data, encoding: .utf8) ?? "")
+        }
+        var r = try JSONDecoder().decode(CleanupResult.self, from: data)
+        r.label = label
+        return r
     }
 
     func cleanupAll(keep: Int) async throws -> [CleanupResult] {
@@ -168,29 +184,38 @@ final class APIService: ObservableObject {
         return results
     }
 
-    // MARK: - Computed
-    var globalStats: GlobalStats {
-        GlobalStats(
-            totalBackups: backups.count,
-            totalVersions: backups.reduce(0) { $0 + $1.versionCount },
-            totalFiles: backups.reduce(0) { $0 + $1.fileCount },
-            totalSize: backups.reduce(0) { $0 + $1.totalSizeBytes }
-        )
+    // MARK: - Request Builder
+
+    func buildRequest(_ path: String, method: String, body: Data?) throws -> URLRequest {
+        guard let url = URL(string: serverURL + path) else {
+            throw URLError(.badURL)
+        }
+        var req = URLRequest(url: url, timeoutInterval: 60)
+        req.httpMethod = method
+        if !apiKey.isEmpty {
+            req.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
+        }
+        if let body {
+            req.httpBody = body
+            if req.value(forHTTPHeaderField: "Content-Type") == nil {
+                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            }
+        }
+        return req
+    }
+
+    // MARK: - Private helpers
+
+    private func apiError(_ code: Int, _ message: String) -> NSError {
+        NSError(domain: "BackupVault", code: code,
+                userInfo: [NSLocalizedDescriptionKey: "HTTP \(code) — \(message.prefix(200))"])
     }
 }
 
+// MARK: - Shared helpers
 
-// MARK: - Errors
-enum AppError: LocalizedError {
-    case invalidURL
-    var errorDescription: String? {
-        switch self { case .invalidURL: return "URL do servidor inválida" }
-    }
-}
-
-// MARK: - String Helper
 private extension String {
-    var urlEncoded: String {
+    var urlSafe: String {
         addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? self
     }
 }

@@ -30,7 +30,7 @@ struct BackupsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .alert("Excluir versão?", isPresented: $showDeleteVersion, presenting: pendingDelete) { ver in
+        .alert("backups.delete_title", isPresented: $showDeleteVersion, presenting: pendingDelete) { ver in
             Button("common.cancel", role: .cancel) {}
             Button("backups.delete_btn", role: .destructive) {
                 Task {
@@ -39,7 +39,7 @@ struct BackupsView: View {
                 }
             }
         } message: { ver in
-            Text("A versão \(ver.versionKey) será permanentemente removida.")
+            Text(L("backups.delete_msg", ver.versionKey))
         }
     }
 
@@ -65,7 +65,7 @@ struct BackupsView: View {
             .padding(.horizontal, 12).padding(.vertical, 6)
             Divider()
             if api.backups.isEmpty && !api.isLoadingBackups {
-                PlaceholderView(title: "Nenhum backup", icon: "externaldrive")
+                PlaceholderView(title: "backups.no_backup", icon: "externaldrive")
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
@@ -102,7 +102,7 @@ struct BackupsView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(backup.label).font(.headline).lineLimit(1)
-                        Text("\(versions.count) versões · \(backup.formattedSize)")
+                        Text(L("backups.versions_count", versions.count, backup.formattedSize))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -144,7 +144,7 @@ struct BackupsView: View {
                     }
                 }
             } else {
-                PlaceholderView(title: L("backups.select"), icon: "externaldrive")
+                PlaceholderView(title: "backups.select", icon: "externaldrive")
             }
         }
         .background(Color(NSColor.controlBackgroundColor))
@@ -157,9 +157,9 @@ struct BackupsView: View {
             if let version = selectedVersion {
                 FilesDetailView(version: version, files: files, isLoading: loadingFiles)
             } else if selectedBackup != nil {
-                PlaceholderView(title: L("backups.select_version"), icon: "clock.arrow.circlepath")
+                PlaceholderView(title: "backups.select_version", icon: "clock.arrow.circlepath")
             } else {
-                PlaceholderView(title: L("backups.select"), icon: "externaldrive")
+                PlaceholderView(title: "backups.select", icon: "externaldrive")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -189,7 +189,7 @@ struct BackupListRow: View {
                 Text(backup.label).font(.subheadline.weight(.medium)).lineLimit(1)
             }
             HStack(spacing: 4) {
-                Text("\(backup.versionCount) versões"); Text("·"); Text(backup.formattedSize)
+                Text(L("backups.versions_count", backup.versionCount, backup.formattedSize))
             }
             .font(.caption).foregroundStyle(.secondary)
         }
@@ -212,7 +212,7 @@ struct VersionListRow: View {
                 }
             }
             HStack(spacing: 4) {
-                Text("\(version.fileCount) arquivos")
+                Text(L("backups.files_count", version.fileCount))
                 Text("· \(version.formattedSize)")
             }
             .font(.caption2).foregroundStyle(.secondary)
@@ -246,7 +246,7 @@ struct FilesDetailView: View {
                         Text(version.versionKey).font(.headline.monospaced())
                     }
                     HStack(spacing: 8) {
-                        Label("\(files.count) arquivos", systemImage: "doc.fill").foregroundStyle(.blue)
+                        Label(L("backups.files_count", files.count), systemImage: "doc.fill").foregroundStyle(.blue)
                         Text("·"); Text(version.formattedSize)
                     }
                     .font(.caption).foregroundStyle(.secondary)
