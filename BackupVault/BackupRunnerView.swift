@@ -66,13 +66,15 @@ struct BackupRunnerSheet: View {
             // ── Stats row (when done) ────────────────────────────────
             if runner.status == .done || runner.status == .failed {
                 HStack(spacing: 0) {
-                    MiniRunStat(value: "\(runner.stats.uploaded)",   label: "runner.stat.uploaded",    color: .blue)
+                    MiniRunStat(value: "\(runner.stats.uploaded)",   label: "runner.stat.uploaded",   color: .blue)
                     Divider()
                     MiniRunStat(value: "\(runner.stats.registered)", label: "runner.stat.registered", color: .green)
                     Divider()
-                    MiniRunStat(value: "\(runner.stats.ignored)",    label: "runner.stat.ignored",   color: .secondary)
+                    MiniRunStat(value: "\(runner.stats.cached)",     label: "runner.stat.cached",     color: .teal)
                     Divider()
-                    MiniRunStat(value: "\(runner.stats.errors)",     label: "runner.stat.errors",       color: .red)
+                    MiniRunStat(value: "\(runner.stats.ignored)",    label: "runner.stat.ignored",    color: .secondary)
+                    Divider()
+                    MiniRunStat(value: "\(runner.stats.errors)",     label: "runner.stat.errors",     color: .red)
                 }
                 .frame(height: 56)
                 Divider()

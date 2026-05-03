@@ -84,7 +84,8 @@
 "runner.cancelled"             = "Backup cancelado — versão marcada como failed.";
 "runner.sync_done"             = "Sync concluído";
 "runner.sync_skipped"          = "Sync ignorado: %@";
-"runner.summary"               = "Enviados: %d  Registrados: %d  Ignorados: %d  Erros: %d";
+"runner.cache_loaded"          = "Cache mtime+size: %d arquivos da versão anterior";
+"runner.summary"               = "Enviados: %d  Registrados: %d  Cacheados: %d  Ignorados: %d  Erros: %d";
 
 /* Version detail */
 "version.detail.files"         = "Arquivos";
@@ -262,6 +263,7 @@
 "runner.close"           = "Fechar";
 "runner.stat.uploaded"   = "Enviados";
 "runner.stat.registered" = "Registrados";
+"runner.stat.cached"     = "Cacheados";
 "runner.stat.ignored"    = "Ignorados";
 "runner.stat.errors"     = "Erros";
 
@@ -299,3 +301,11 @@
 "cleanup.result_detail"  = "mantidas: %d  removidas: %d  storage: %d";
 "cleanup.confirm_title"  = "Confirmar limpeza?";
 "cleanup.confirm_msg"    = "Esta ação é irreversível. %d versão(ões) serão permanentemente removidas do servidor.";
+
+/* Queue Schedule (aba Configurações) */
+"settings.queue_schedule"          = "Agendamento";
+"settings.queue_sched.title"       = "Agendamento da Fila";
+"settings.queue_sched.subtitle"    = "Executar todos os backups ativos em um agendamento recorrente";
+"settings.queue_sched.last_run"    = "Última execução";
+"settings.queue_sched.next_run"    = "Próxima execução";
+"settings.queue_sched.never"       = "Nunca";

@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @EnvironmentObject var api: APIService
+    @EnvironmentObject var api:      APIService
+    @EnvironmentObject var schedule: ScheduleManager
     @StateObject private var loginItem = LoginItemManager()
     @StateObject private var power     = PowerMonitor()
     @State private var isTesting = false
@@ -11,9 +12,10 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            generalTab.tabItem { Label("settings.general", systemImage: "gearshape") }
-            serverTab.tabItem  { Label("settings.server",  systemImage: "network") }
-            aboutTab.tabItem   { Label("settings.about",   systemImage: "info.circle") }
+            generalTab.tabItem      { Label("settings.general",        systemImage: "gearshape") }
+            serverTab.tabItem       { Label("settings.server",         systemImage: "network") }
+            queueScheduleTab.tabItem { Label("settings.queue_schedule", systemImage: "calendar.badge.clock") }
+            aboutTab.tabItem        { Label("settings.about",          systemImage: "info.circle") }
         }
         .padding(6)
         .frame(width: 540)
@@ -183,6 +185,89 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding(6)
+    }
+
+    // MARK: - Queue Schedule Tab
+
+    var queueScheduleTab: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.purple.opacity(0.12))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.purple)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("settings.queue_sched.title").font(.headline)
+                    Text("settings.queue_sched.subtitle")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                if schedule.queueSchedule.enabled {
+                    Text(scheduleSummary)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.purple)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Color.purple.opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
+
+            Divider()
+
+            // Schedule editor
+            ScheduleEditor(schedule: $schedule.queueSchedule)
+                .frame(height: 320)
+
+            Divider()
+
+            // Last / next run row
+            HStack(spacing: 0) {
+                runInfoCell(
+                    icon: "clock.arrow.circlepath",
+                    label: LocalizedStringKey("settings.queue_sched.last_run"),
+                    value: schedule.queueScheduleLastRun.map { Text($0, style: .relative) }
+                        ?? Text("settings.queue_sched.never")
+                )
+                Divider()
+                runInfoCell(
+                    icon: "clock.badge.checkmark",
+                    label: LocalizedStringKey("settings.queue_sched.next_run"),
+                    value: schedule.nextQueueRun.map { Text($0, style: .relative) }
+                        ?? Text("settings.queue_sched.never")
+                )
+            }
+            .frame(height: 56)
+            .background(.background.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func runInfoCell(icon: String, label: LocalizedStringKey, value: Text) -> some View {
+        VStack(spacing: 3) {
+            HStack(spacing: 4) {
+                Image(systemName: icon).font(.caption2).foregroundStyle(.secondary)
+                Text(label).font(.caption2).foregroundStyle(.secondary)
+            }
+            value.font(.caption.weight(.medium)).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var scheduleSummary: String {
+        switch schedule.queueSchedule.frequency {
+        case .off:    return L("schedule.summary.off")
+        case .hourly: return L("schedule.summary.hourly")
+        case .daily:  return L("schedule.summary.daily")
+        case .weekly: return L("schedule.summary.weekly")
+        case .custom: return L("schedule.summary.custom")
+        }
     }
 
     // MARK: - About Tab

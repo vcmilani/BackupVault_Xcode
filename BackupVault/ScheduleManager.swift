@@ -28,9 +28,38 @@ final class ScheduleManager: ObservableObject {
     // Queue tracking
     @Published var activeQueue: BackupQueue?
 
+    // Queue schedule — persisted as JSON in UserDefaults
+    @Published var queueSchedule: BackupSchedule {
+        didSet {
+            guard let data = try? JSONEncoder().encode(queueSchedule) else { return }
+            UserDefaults.standard.set(data, forKey: "queue.schedule.config")
+        }
+    }
+
+    // Last time the scheduled queue fired
+    @Published var queueScheduleLastRun: Date? {
+        didSet { UserDefaults.standard.set(queueScheduleLastRun, forKey: "queue.schedule.lastRun") }
+    }
+
+    /// Next scheduled queue run date (nil if schedule is off)
+    var nextQueueRun: Date? {
+        guard queueSchedule.enabled else { return nil }
+        return queueSchedule.nextRun(after: Date(), lastRun: queueScheduleLastRun)
+    }
+
     private var timer: Timer?
 
-    init() {}
+    init() {
+        if let data = UserDefaults.standard.data(forKey: "queue.schedule.config"),
+           let saved = try? JSONDecoder().decode(BackupSchedule.self, from: data) {
+            _queueSchedule = Published(wrappedValue: saved)
+        } else {
+            _queueSchedule = Published(wrappedValue: BackupSchedule())
+        }
+        _queueScheduleLastRun = Published(wrappedValue:
+            UserDefaults.standard.object(forKey: "queue.schedule.lastRun") as? Date
+        )
+    }
 
     func bind(api: APIService, store: ConfigStore, power: PowerMonitor) {
         self.api   = api
@@ -58,11 +87,11 @@ final class ScheduleManager: ObservableObject {
     func tick() {
         lastTickDate = Date()
         guard !isRunningScheduled else { return }
+        guard activeManualRunner == nil, activeQueue == nil else { return }
         guard let store, let api, let power else { return }
 
-        // Skip if API not connected (backoff window respected by API)
+        // Skip if API not connected
         guard api.isConnected else {
-            // Schedule still tries to wake the connection up periodically
             Task { await api.checkHealth() }
             return
         }
@@ -76,7 +105,18 @@ final class ScheduleManager: ObservableObject {
         // Skip if not on local network
         guard power.isOnLocalNetwork else { return }
 
-        // Find a due profile
+        // Queue schedule fires before individual profiles
+        if queueSchedule.isDue(now: Date(), lastRun: queueScheduleLastRun) {
+            let profiles = store.profiles.filter {
+                $0.enabled && !$0.label.isEmpty && !$0.sourcePath.isEmpty
+            }
+            if !profiles.isEmpty {
+                Task { await runScheduledQueue(profiles: profiles) }
+                return
+            }
+        }
+
+        // Find a due individual profile
         let due = store.profiles.first { profile in
             profile.enabled
             && !profile.label.isEmpty
@@ -90,7 +130,18 @@ final class ScheduleManager: ObservableObject {
         Task { await runScheduled(profile: profile) }
     }
 
-    // MARK: - Run
+    // MARK: - Scheduled Queue Run
+
+    private func runScheduledQueue(profiles: [BackupProfile]) async {
+        guard let api else { return }
+        let q = BackupQueue(api: api, profiles: profiles)
+        registerQueue(q)
+        queueScheduleLastRun = Date()
+        await q.run()
+        clearQueue(q)
+    }
+
+    // MARK: - Individual Profile Run
 
     private func runScheduled(profile: BackupProfile) async {
         guard let api, let store else { return }
@@ -144,7 +195,7 @@ final class ScheduleManager: ObservableObject {
 
     // MARK: - Helpers
 
-    /// Returns the next scheduled run across all enabled profiles, for the menu bar UI.
+    /// Returns the next scheduled individual-profile run, for the menu bar UI.
     func nextScheduledRun() -> (profile: BackupProfile, date: Date)? {
         guard let store else { return nil }
         let candidates: [(BackupProfile, Date)] = store.profiles.compactMap { p in

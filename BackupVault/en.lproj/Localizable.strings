@@ -84,7 +84,8 @@
 "runner.cancelled"             = "Backup cancelled — version marked as failed.";
 "runner.sync_done"             = "Sync complete";
 "runner.sync_skipped"          = "Sync skipped: %@";
-"runner.summary"               = "Uploaded: %d  Registered: %d  Ignored: %d  Errors: %d";
+"runner.cache_loaded"          = "mtime+size cache: %d files from previous version";
+"runner.summary"               = "Uploaded: %d  Registered: %d  Cached: %d  Ignored: %d  Errors: %d";
 
 /* Version detail */
 "version.detail.files"         = "Files";
@@ -233,6 +234,7 @@
 "runner.close"           = "Close";
 "runner.stat.uploaded"   = "Uploaded";
 "runner.stat.registered" = "Registered";
+"runner.stat.cached"     = "Cached";
 "runner.stat.ignored"    = "Ignored";
 "runner.stat.errors"     = "Errors";
 
@@ -299,3 +301,11 @@
 "cleanup.result_detail"  = "kept: %d  removed: %d  storage: %d";
 "cleanup.confirm_title"  = "Confirm cleanup?";
 "cleanup.confirm_msg"    = "This action is irreversible. %d version(s) will be permanently removed from the server.";
+
+/* Queue Schedule (Settings tab) */
+"settings.queue_schedule"          = "Schedule";
+"settings.queue_sched.title"       = "Queue Schedule";
+"settings.queue_sched.subtitle"    = "Run all active backups on a recurring schedule";
+"settings.queue_sched.last_run"    = "Last run";
+"settings.queue_sched.next_run"    = "Next run";
+"settings.queue_sched.never"       = "Never";
