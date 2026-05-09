@@ -85,6 +85,9 @@
 "runner.sync_done"             = "Sync concluído";
 "runner.sync_skipped"          = "Sync ignorado: %@";
 "runner.cache_loaded"          = "Cache mtime+size: %d arquivos da versão anterior";
+"runner.batch_mode"            = "Modo batch ativado (servidor v2.6+)";
+"runner.classifying"           = "Cache: %d  Para verificar: %d";
+"runner.batch_check_error"     = "Erro no batch check (arquivos serão enviados): %@";
 "runner.summary"               = "Enviados: %d  Registrados: %d  Cacheados: %d  Ignorados: %d  Erros: %d";
 
 /* Version detail */

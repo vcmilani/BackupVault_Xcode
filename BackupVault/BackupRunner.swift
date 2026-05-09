@@ -24,12 +24,27 @@ final class BackupRunner: ObservableObject {
         var total = 0, uploaded = 0, registered = 0, cached = 0, ignored = 0, errors = 0
     }
 
+    private enum FileAction {
+        case skip
+        case cachedRegister(sha256: String)   // mtime+size cache hit — counted as "cached"
+        case register(sha256: String)          // contentExists = true
+        case upload                            // contentExists = false
+    }
+
+    private struct HashedFile {
+        let url: URL
+        let serverPath: String
+        let sha256: String
+        let size: Int64
+        let mtime: Double
+    }
+
     private let api: APIService
     private var isCancelled = false
     private var session = URLSession(configuration: .default)
 
-    /// Retry attempts per file on transient network errors
     private let maxRetries = 3
+    private let batchSize  = 100
 
     init(api: APIService) { self.api = api }
 
@@ -76,11 +91,11 @@ final class BackupRunner: ObservableObject {
             status = .failed; return
         }
 
-        // 2.5. Fetch previous version cache (mtime+size fast path — no SHA-256 for unchanged files)
+        // 3. Previous version cache (mtime+size fast path — avoids SHA-256 for unchanged files)
         let cache = await fetchPreviousVersionCache(label: label)
         if !cache.isEmpty { log(L("runner.cache_loaded", cache.count), .info) }
 
-        // 3. Walk filesystem (off main actor — avoids blocking UI for large directories)
+        // 4. Walk filesystem (off main actor — avoids blocking UI for large directories)
         let excludes = profile.excludes
         let fileURLs: [URL]
         do {
@@ -94,7 +109,7 @@ final class BackupRunner: ObservableObject {
                     throw NSError(domain: "BackupVault", code: -1, userInfo: [:])
                 }
                 var urls: [URL] = []
-                for case let url as URL in enumerator {
+                while let url = enumerator.nextObject() as? URL {
                     if excludes.contains(url.lastPathComponent) {
                         enumerator.skipDescendants(); continue
                     }
@@ -114,7 +129,7 @@ final class BackupRunner: ObservableObject {
         stats.total = fileURLs.count
         log(L("runner.files_found", fileURLs.count), .info)
 
-        // 4. Build server path list (needed for sync later)
+        // 5. Build server path list (needed for sync later)
         let serverPaths: [String] = fileURLs.map { url in
             guard !profile.prefix.isEmpty else { return url.path }
             let rel = url.path.hasPrefix(source)
@@ -125,45 +140,196 @@ final class BackupRunner: ObservableObject {
                 : profile.prefix + rel
         }
 
-        // 5. Process files with bounded concurrency (TaskGroup)
-        let pairs            = Array(zip(fileURLs, serverPaths))
-        let totalFiles       = pairs.count
-        let accumulator      = StatsAccumulator()
+        let accumulator = StatsAccumulator()
+
+        // ── PHASE 1: Classify ────────────────────────────────────────────────
+
+        let useBatch = api.supportsBatch()
+        if useBatch { log(L("runner.batch_mode"), .info) }
+
+        // Split into cache hits and files that need hashing
+        var fastEntries: [(url: URL, serverPath: String, sha256: String, mtime: Double)] = []
+        var slowEntries: [(url: URL, serverPath: String, size: Int64, mtime: Double)] = []
+
+        for (url, serverPath) in zip(fileURLs, serverPaths) {
+            guard !isCancelled else { break }
+            let attrs = (try? FileManager.default.attributesOfItem(atPath: url.path)) ?? [:]
+            let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+            let size  = (attrs[.size] as? NSNumber).map { Int64(truncatingIfNeeded: $0.int64Value) } ?? 0
+            if let cached = cache[serverPath], cached.mtime == mtime, cached.size == size {
+                fastEntries.append((url, serverPath, cached.sha256, mtime))
+            } else {
+                slowEntries.append((url, serverPath, size, mtime))
+            }
+        }
+
+        if isCancelled {
+            await finalizeVersion(label: label, versionKey: versionKey, ok: false)
+            progress = 0; currentFile = ""; status = .cancelled
+            DockProgress.shared.update(progress: nil)
+            log(L("runner.cancelled"), .warning); return
+        }
+
+        log(L("runner.classifying", fastEntries.count, slowEntries.count), .info)
+
+        // Hash slow files in parallel
+        var hashedFiles: [HashedFile] = []
+        let totalSlow = slowEntries.count
+        let phase1Weight = totalSlow > 0 ? 0.4 : 0.0
+
+        await withTaskGroup(of: HashedFile?.self) { group in
+            for entry in slowEntries {
+                guard !isCancelled else { break }
+                group.addTask { [weak self] in
+                    guard let self else { return nil }
+                    do {
+                        let (sha256, _) = try await self.computeSHA256Streaming(url: entry.url)
+                        return HashedFile(url: entry.url, serverPath: entry.serverPath,
+                                         sha256: sha256, size: entry.size, mtime: entry.mtime)
+                    } catch {
+                        if !(error is CancellationError) {
+                            await accumulator.recordError()
+                            await MainActor.run {
+                                self.log(L("runner.file_error", entry.url.lastPathComponent,
+                                           error.localizedDescription), .error)
+                            }
+                        }
+                        return nil
+                    }
+                }
+            }
+            var done = 0
+            for await hf in group {
+                if let hf { hashedFiles.append(hf) }
+                done += 1
+                progress    = Double(done) / Double(max(totalSlow, 1)) * phase1Weight
+                currentFile = hf?.url.lastPathComponent ?? ""
+                DockProgress.shared.update(progress: progress)
+            }
+        }
+
+        if isCancelled {
+            await finalizeVersion(label: label, versionKey: versionKey, ok: false)
+            progress = 0; currentFile = ""; status = .cancelled
+            DockProgress.shared.update(progress: nil)
+            log(L("runner.cancelled"), .warning); return
+        }
+
+        // Classify hashed files via batch or individual /check
+        var actionMap: [String: (action: FileAction, url: URL, mtime: Double)] = [:]
+
+        if useBatch && !hashedFiles.isEmpty {
+            let batches = stride(from: 0, to: hashedFiles.count, by: batchSize)
+                .map { Array(hashedFiles[$0..<min($0 + batchSize, hashedFiles.count)]) }
+            for batch in batches {
+                guard !isCancelled else { break }
+                let items = batch.map {
+                    CheckBatchItem(originalPath: $0.serverPath, sha256: $0.sha256,
+                                   size: Int($0.size), mtime: $0.mtime)
+                }
+                do {
+                    let results = try await api.checkBatch(
+                        session: session, label: label,
+                        versionKey: versionKey, items: items)
+                    for (idx, result) in results.enumerated() {
+                        let item = items[idx]; let h = batch[idx]
+                        if !result.needsUpload {
+                            actionMap[item.originalPath] = (.skip, h.url, h.mtime)
+                        } else if result.contentExists {
+                            actionMap[item.originalPath] = (.register(sha256: item.sha256), h.url, h.mtime)
+                        } else {
+                            actionMap[item.originalPath] = (.upload, h.url, h.mtime)
+                        }
+                    }
+                } catch {
+                    log(L("runner.batch_check_error", error.localizedDescription), .warning)
+                    for h in batch {
+                        actionMap[h.serverPath] = (.upload, h.url, h.mtime)
+                    }
+                }
+            }
+        } else {
+            // Fallback: individual /check per file
+            for h in hashedFiles {
+                guard !isCancelled else { break }
+                let checkBody = try? JSONSerialization.data(withJSONObject: [
+                    "backup_label": label,
+                    "version_key":  versionKey,
+                    "original_path": h.serverPath,
+                    "sha256": h.sha256,
+                    "size":   Int(h.size),
+                    "mtime":  h.mtime
+                ] as [String: Any])
+                guard let body = checkBody,
+                      let req  = try? api.buildRequest("/check", method: "POST", body: body),
+                      let (data, _) = try? await session.data(for: req),
+                      let resp = try? JSONDecoder().decode(CheckResponse.self, from: data)
+                else {
+                    actionMap[h.serverPath] = (.upload, h.url, h.mtime); continue
+                }
+                if !resp.needsUpload {
+                    actionMap[h.serverPath] = (.skip, h.url, h.mtime)
+                } else if resp.contentExists {
+                    actionMap[h.serverPath] = (.register(sha256: h.sha256), h.url, h.mtime)
+                } else {
+                    actionMap[h.serverPath] = (.upload, h.url, h.mtime)
+                }
+            }
+        }
+
+        // ── PHASE 2: Execute actions ─────────────────────────────────────────
+
+        struct WorkItem {
+            let action: FileAction
+            let url: URL; let serverPath: String; let mtime: Double
+        }
+
+        var workItems: [WorkItem] = []
+        for f in fastEntries {
+            workItems.append(WorkItem(action: .cachedRegister(sha256: f.sha256),
+                                      url: f.url, serverPath: f.serverPath, mtime: f.mtime))
+        }
+        for (path, entry) in actionMap {
+            workItems.append(WorkItem(action: entry.action, url: entry.url,
+                                      serverPath: path, mtime: entry.mtime))
+        }
+
+        let totalWork        = workItems.count
         let concurrencyLimit = max(1, profile.workers)
+        let phase2Start      = phase1Weight
 
         await withTaskGroup(of: Void.self) { group in
             var inFlight = 0
             var index    = 0
 
-            while index < pairs.count || inFlight > 0 {
-                while inFlight < concurrencyLimit && index < pairs.count {
+            while index < workItems.count || inFlight > 0 {
+                while inFlight < concurrencyLimit && index < workItems.count {
                     guard !isCancelled else { break }
-                    let (url, serverPath) = pairs[index]
-                    let i = index
-                    index += 1
+                    let item = workItems[index]
+                    let i    = index
+                    index   += 1
                     inFlight += 1
 
                     group.addTask { [weak self] in
                         guard let self else { return }
                         do {
-                            let action = try await self.processFileWithRetry(
-                                url: url, label: label,
-                                versionKey: versionKey, serverPath: serverPath,
-                                cache: cache
-                            )
-                            await accumulator.record(action: action)
+                            let actionStr = try await self.executeActionWithRetry(
+                                item.action, url: item.url,
+                                label: label, versionKey: versionKey,
+                                serverPath: item.serverPath, mtime: item.mtime)
+                            await accumulator.record(action: actionStr)
                         } catch {
                             if !(error is CancellationError) {
                                 await accumulator.recordError()
                                 await MainActor.run {
-                                    self.log(L("runner.file_error", url.lastPathComponent,
+                                    self.log(L("runner.file_error", item.url.lastPathComponent,
                                                error.localizedDescription), .error)
                                 }
                             }
                         }
                         await MainActor.run {
-                            self.progress    = Double(i + 1) / Double(max(totalFiles, 1))
-                            self.currentFile = url.lastPathComponent
+                            self.progress    = phase2Start + Double(i + 1) / Double(max(totalWork, 1)) * (1.0 - phase2Start)
+                            self.currentFile = item.url.lastPathComponent
                             DockProgress.shared.update(progress: self.progress)
                         }
                     }
@@ -184,12 +350,9 @@ final class BackupRunner: ObservableObject {
 
         if isCancelled {
             await finalizeVersion(label: label, versionKey: versionKey, ok: false)
-            progress    = 0
-            currentFile = ""
-            status      = .cancelled
+            progress = 0; currentFile = ""; status = .cancelled
             DockProgress.shared.update(progress: nil)
-            log(L("runner.cancelled"), .warning)
-            return
+            log(L("runner.cancelled"), .warning); return
         }
 
         // 6. Sync
@@ -214,6 +377,76 @@ final class BackupRunner: ObservableObject {
               stats.uploaded, stats.registered, stats.cached, stats.ignored, stats.errors), .success)
     }
 
+    // MARK: - Action Execution
+
+    private func executeActionWithRetry(
+        _ action: FileAction,
+        url: URL, label: String, versionKey: String,
+        serverPath: String, mtime: Double
+    ) async throws -> String {
+        var lastError: Error?
+        for attempt in 1...maxRetries {
+            guard !isCancelled else { throw CancellationError() }
+            do {
+                return try await executeAction(action, url: url, label: label,
+                                               versionKey: versionKey,
+                                               serverPath: serverPath, mtime: mtime)
+            } catch {
+                lastError = error
+                guard !isCancelled, attempt < maxRetries else { break }
+                try? await Task.sleep(nanoseconds: UInt64(500_000_000) * UInt64(attempt))
+            }
+        }
+        throw lastError ?? CancellationError()
+    }
+
+    private func executeAction(
+        _ action: FileAction,
+        url: URL, label: String, versionKey: String,
+        serverPath: String, mtime: Double
+    ) async throws -> String {
+        guard !isCancelled else { throw CancellationError() }
+        let pathB64 = Data(serverPath.utf8).base64EncodedString()
+
+        switch action {
+        case .skip:
+            return "ignore"
+
+        case .cachedRegister(let sha256), .register(let sha256):
+            var req = try api.buildRequest("/upload", method: "POST", body: nil)
+            req.timeoutInterval = 300
+            req.setValue(label,         forHTTPHeaderField: "X-Backup-Label")
+            req.setValue(versionKey,    forHTTPHeaderField: "X-Version-Key")
+            req.setValue(pathB64,       forHTTPHeaderField: "X-Original-Path")
+            req.setValue(String(mtime), forHTTPHeaderField: "X-Mtime")
+            req.setValue(sha256,        forHTTPHeaderField: "X-Content-Sha256")
+            let (respData, response) = try await session.data(for: req)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                let msg = String(data: respData, encoding: .utf8) ?? "(sem mensagem)"
+                throw NSError(domain: "BackupVault", code: http.statusCode,
+                              userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode) — \(msg.prefix(300))"])
+            }
+            if case .cachedRegister = action { return "cached" }
+            return "register"
+
+        case .upload:
+            var req = try api.buildRequest("/upload", method: "POST", body: nil)
+            req.timeoutInterval = 300
+            req.setValue(label,                      forHTTPHeaderField: "X-Backup-Label")
+            req.setValue(versionKey,                 forHTTPHeaderField: "X-Version-Key")
+            req.setValue(pathB64,                    forHTTPHeaderField: "X-Original-Path")
+            req.setValue(String(mtime),              forHTTPHeaderField: "X-Mtime")
+            req.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+            let (respData, response) = try await session.upload(for: req, fromFile: url)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                let msg = String(data: respData, encoding: .utf8) ?? "(sem mensagem)"
+                throw NSError(domain: "BackupVault", code: http.statusCode,
+                              userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode) — \(msg.prefix(300))"])
+            }
+            return "upload"
+        }
+    }
+
     // MARK: - API Helpers
 
     private func createBackup(label: String) async throws {
@@ -224,7 +457,7 @@ final class BackupRunner: ObservableObject {
         let req = try api.buildRequest("/backups", method: "POST", body: body)
         let (data, resp) = try await session.data(for: req)
         guard let http = resp as? HTTPURLResponse else { return }
-        if http.statusCode == 409 { return }  // Already exists — ok
+        if http.statusCode == 409 { return }
         if !(200..<300).contains(http.statusCode) {
             let msg = String(data: data, encoding: .utf8) ?? "(sem mensagem)"
             throw NSError(domain: "BackupVault", code: http.statusCode,
@@ -257,8 +490,6 @@ final class BackupRunner: ObservableObject {
         return versionKey
     }
 
-    /// Fetches the file list from the latest `done` version to build an mtime+size cache.
-    /// Returns an empty dictionary if no previous version exists or on any error.
     private func fetchPreviousVersionCache(label: String) async -> [String: FileCache] {
         guard let versions = try? await api.fetchVersions(label: label),
               let doneVersion = versions.first(where: { $0.isDone })
@@ -277,112 +508,32 @@ final class BackupRunner: ObservableObject {
         return cache
     }
 
-    /// Retries processFile up to maxRetries times with exponential back-off
-    private func processFileWithRetry(url: URL, label: String,
-                                      versionKey: String, serverPath: String,
-                                      cache: [String: FileCache]) async throws -> String {
-        var lastError: Error?
-        for attempt in 1...maxRetries {
-            guard !isCancelled else { throw CancellationError() }
-            do {
-                return try await processFile(url: url, label: label,
-                                             versionKey: versionKey, serverPath: serverPath,
-                                             cache: cache)
-            } catch {
-                lastError = error
-                guard !isCancelled, attempt < maxRetries else { break }
-                // 0.5 s · 1 s · 2 s …
-                try? await Task.sleep(nanoseconds: UInt64(500_000_000) * UInt64(attempt))
-            }
-        }
-        throw lastError ?? CancellationError()
-    }
-
-    /// Processes one file: mtime+size cache → SHA-256 check → upload/register.
-    /// Fast path skips all disk I/O when mtime+size match the previous version.
-    private func processFile(url: URL, label: String,
-                             versionKey: String, serverPath: String,
-                             cache: [String: FileCache]) async throws -> String {
-        guard !isCancelled else { throw CancellationError() }
-
-        // Stat the file — cheap metadata read, no file content I/O
-        let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
-        let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-        let size  = (attrs[.size] as? NSNumber).map { Int64(truncatingIfNeeded: $0.int64Value) } ?? 0
-
-        // Fast path: mtime+size match previous version → skip SHA-256 and /check entirely
-        if let cached = cache[serverPath], cached.mtime == mtime, cached.size == size {
-            var req = try api.buildRequest("/upload", method: "POST", body: nil)
-            req.timeoutInterval = 300
-            let pathB64 = Data(serverPath.utf8).base64EncodedString()
-            req.setValue(label,           forHTTPHeaderField: "X-Backup-Label")
-            req.setValue(versionKey,      forHTTPHeaderField: "X-Version-Key")
-            req.setValue(pathB64,         forHTTPHeaderField: "X-Original-Path")
-            req.setValue(String(mtime),   forHTTPHeaderField: "X-Mtime")
-            req.setValue(cached.sha256,   forHTTPHeaderField: "X-Content-Sha256")
-            let (respData, response) = try await session.data(for: req)
-            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-                let msg = String(data: respData, encoding: .utf8) ?? "(sem mensagem)"
-                throw NSError(domain: "BackupVault", code: http.statusCode,
-                              userInfo: [NSLocalizedDescriptionKey:
-                                "HTTP \(http.statusCode) — \(msg.prefix(300))"])
-            }
-            return "cached"
-        }
-
-        // Slow path: compute SHA-256 then check with server
-        guard !isCancelled else { throw CancellationError() }
-        let (sha256, _) = try await computeSHA256Streaming(url: url)
-        guard !isCancelled else { throw CancellationError() }
-
-        let checkBody = try JSONSerialization.data(withJSONObject: [
+    private func syncVersion(label: String, versionKey: String, paths: [String]) async throws -> Bool {
+        let body = try JSONSerialization.data(withJSONObject: [
             "backup_label": label,
             "version_key":  versionKey,
-            "original_path": serverPath,
-            "sha256": sha256,
-            "size":   Int(size),
-            "mtime":  mtime
+            "existing_paths": paths
         ] as [String: Any])
-        let checkReq = try api.buildRequest("/check", method: "POST", body: checkBody)
-        let (checkData, _) = try await session.data(for: checkReq)
-        let checkResp     = try? JSONDecoder().decode(CheckResponse.self, from: checkData)
-        let needsUpload   = checkResp?.needsUpload   ?? true
-        let contentExists = checkResp?.contentExists ?? false
-
-        if !needsUpload { return "ignore" }
-
-        guard !isCancelled else { throw CancellationError() }
-
-        var req = try api.buildRequest("/upload", method: "POST", body: nil)
-        req.timeoutInterval = 300
-        let pathB64 = Data(serverPath.utf8).base64EncodedString()
-        req.setValue(label,         forHTTPHeaderField: "X-Backup-Label")
-        req.setValue(versionKey,    forHTTPHeaderField: "X-Version-Key")
-        req.setValue(pathB64,       forHTTPHeaderField: "X-Original-Path")
-        req.setValue(String(mtime), forHTTPHeaderField: "X-Mtime")
-
-        let (respData, response): (Data, URLResponse)
-        if !contentExists {
-            req.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
-            (respData, response) = try await session.upload(for: req, fromFile: url)
-        } else {
-            req.setValue(sha256, forHTTPHeaderField: "X-Content-Sha256")
-            (respData, response) = try await session.data(for: req)
-        }
-
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            let serverMsg = String(data: respData, encoding: .utf8) ?? "(sem mensagem)"
-            throw NSError(domain: "BackupVault", code: http.statusCode,
-                          userInfo: [NSLocalizedDescriptionKey:
-                            "HTTP \(http.statusCode) — \(serverMsg.prefix(300))"])
-        }
-        return contentExists ? "register" : "upload"
+        let req = try api.buildRequest("/sync", method: "POST", body: body)
+        let (data, _) = try await session.data(for: req)
+        let resp = try? JSONDecoder().decode(SyncResponse.self, from: data)
+        return resp?.synced ?? false
     }
 
-    /// Computes SHA-256 in 1 MB chunks — runs off the main actor via Task.detached
+    private func finalizeVersion(label: String, versionKey: String, ok: Bool) async {
+        guard let body = try? JSONSerialization.data(withJSONObject: ["status": ok ? "done" : "failed"]),
+              let req  = try? api.buildRequest(
+                  "/backups/\(label.urlSafe)/versions/\(versionKey.urlSafe)",
+                  method: "PATCH", body: body)
+        else { return }
+        _ = try? await URLSession.shared.data(for: req)
+    }
+
+    // MARK: - SHA-256
+
     private func computeSHA256Streaming(url: URL) async throws -> (sha256: String, size: Int) {
         return try await Task.detached(priority: .userInitiated) {
-            let bufferSize = 1_048_576  // 1 MB
+            let bufferSize = 1_048_576
             guard let stream = InputStream(url: url) else {
                 throw NSError(domain: "BackupVault", code: -1,
                               userInfo: [NSLocalizedDescriptionKey:
@@ -411,28 +562,6 @@ final class BackupRunner: ObservableObject {
             let sha256  = digest.compactMap { String(format: "%02x", $0) }.joined()
             return (sha256, totalSize)
         }.value
-    }
-
-    private func syncVersion(label: String, versionKey: String, paths: [String]) async throws -> Bool {
-        let body = try JSONSerialization.data(withJSONObject: [
-            "backup_label": label,
-            "version_key":  versionKey,
-            "existing_paths": paths
-        ] as [String: Any])
-        let req = try api.buildRequest("/sync", method: "POST", body: body)
-        let (data, _) = try await session.data(for: req)
-        let resp = try? JSONDecoder().decode(SyncResponse.self, from: data)
-        return resp?.synced ?? false
-    }
-
-    private func finalizeVersion(label: String, versionKey: String, ok: Bool) async {
-        guard let body = try? JSONSerialization.data(withJSONObject: ["status": ok ? "done" : "failed"]),
-              let req  = try? api.buildRequest(
-                  "/backups/\(label.urlSafe)/versions/\(versionKey.urlSafe)",
-                  method: "PATCH", body: body)
-        else { return }
-        // URLSession.shared — must succeed even after session.invalidateAndCancel()
-        _ = try? await URLSession.shared.data(for: req)
     }
 
     // MARK: - Log

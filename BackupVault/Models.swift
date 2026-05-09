@@ -104,6 +104,46 @@ struct CheckResponse: Codable {
     }
 }
 
+// MARK: - Batch Check  (POST /check/batch — server v2.6+)
+
+struct CheckBatchItem: Encodable {
+    let originalPath: String
+    let sha256: String
+    let size: Int
+    let mtime: Double
+
+    enum CodingKeys: String, CodingKey {
+        case originalPath = "original_path"
+        case sha256, size, mtime
+    }
+}
+
+struct CheckBatchRequest: Encodable {
+    let backupLabel: String
+    let versionKey: String
+    let files: [CheckBatchItem]
+
+    enum CodingKeys: String, CodingKey {
+        case backupLabel = "backup_label"
+        case versionKey  = "version_key"
+        case files
+    }
+}
+
+struct CheckBatchResultItem: Decodable {
+    let needsUpload: Bool
+    let contentExists: Bool
+    let reason: String
+    let fileId: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case needsUpload   = "needs_upload"
+        case contentExists = "content_exists"
+        case reason
+        case fileId        = "file_id"
+    }
+}
+
 // MARK: - UploadResponse  (POST /upload)
 
 struct UploadResponse: Codable {

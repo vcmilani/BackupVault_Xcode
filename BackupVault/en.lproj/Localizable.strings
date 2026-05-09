@@ -85,6 +85,9 @@
 "runner.sync_done"             = "Sync complete";
 "runner.sync_skipped"          = "Sync skipped: %@";
 "runner.cache_loaded"          = "mtime+size cache: %d files from previous version";
+"runner.batch_mode"            = "Batch check enabled (server v2.6+)";
+"runner.classifying"           = "Cache hits: %d  To check: %d";
+"runner.batch_check_error"     = "Batch check error (files will be uploaded): %@";
 "runner.summary"               = "Uploaded: %d  Registered: %d  Cached: %d  Ignored: %d  Errors: %d";
 
 /* Version detail */
