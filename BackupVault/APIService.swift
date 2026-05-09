@@ -66,6 +66,32 @@ final class APIService: ObservableObject {
         UserDefaults.standard.set(apiKey,    forKey: "api_key")
     }
 
+    // MARK: - Batch Support
+
+    func supportsBatch() -> Bool {
+        let parts = serverVersion.split(separator: ".").compactMap { Int($0) }
+        guard parts.count >= 2 else { return false }
+        return (parts[0], parts[1]) >= (2, 6)
+    }
+
+    func checkBatch(
+        session: URLSession,
+        label: String,
+        versionKey: String,
+        items: [CheckBatchItem]
+    ) async throws -> [CheckBatchResultItem] {
+        let body = try JSONEncoder().encode(
+            CheckBatchRequest(backupLabel: label, versionKey: versionKey, files: items))
+        var req = try buildRequest("/check/batch", method: "POST", body: body)
+        req.timeoutInterval = 30
+        let (data, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+            throw apiError(code, String(data: data, encoding: .utf8) ?? "")
+        }
+        return try JSONDecoder().decode([CheckBatchResultItem].self, from: data)
+    }
+
     // MARK: - Health
 
     func checkHealth() async {
