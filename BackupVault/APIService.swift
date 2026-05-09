@@ -56,7 +56,7 @@ final class APIService: ObservableObject {
         GlobalStats(
             totalBackups:  backups.count,
             totalVersions: backups.reduce(0) { $0 + $1.versionCount },
-            totalFiles:    0,
+            totalFiles:    backups.reduce(0) { $0 + $1.fileCount },
             totalSize:     backups.reduce(0) { $0 + $1.totalSizeBytes }
         )
     }
