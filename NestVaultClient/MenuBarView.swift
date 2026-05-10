@@ -25,7 +25,7 @@ struct MenuBarView: View {
                         .foregroundStyle(.white)
                 }
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("BackupVault")
+                    Text("NestVault")
                         .font(.headline)
                     HStack(spacing: 4) {
                         Circle()
@@ -201,7 +201,7 @@ struct MenuBarView: View {
                 Image(systemName: "arrow.up.circle.fill")
                     .foregroundStyle(.blue)
                     .symbolEffect(.pulse)
-                Text(name ?? "BackupVault")
+                Text(name ?? "NestVault")
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
                 if let badge {

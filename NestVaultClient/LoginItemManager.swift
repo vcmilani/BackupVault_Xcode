@@ -39,6 +39,8 @@ final class LoginItemManager: ObservableObject {
             lastError = error.localizedDescription
         }
         refresh()
+        // TODO: Remover após algumas versões — usado apenas para migração de bundle ID
+        UserDefaults.standard.set(isEnabled, forKey: "loginItem.wasEnabled")
     }
 
     /// Opens System Settings → General → Login Items so user can approve.

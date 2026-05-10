@@ -149,7 +149,7 @@
 "menubar.disconnected"  = "Desconectado";
 "menubar.no_backups"    = "Nenhum backup encontrado";
 "menubar.no_connection" = "Sem conexão";
-"menubar.open"          = "Abrir BackupVault";
+"menubar.open"          = "Abrir NestVault";
 "menubar.settings"      = "Configurações";
 "menubar.quit"          = "Sair";
 "menubar.stat.backups"  = "Backups";

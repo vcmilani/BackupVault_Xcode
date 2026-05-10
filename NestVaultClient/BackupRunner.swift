@@ -106,7 +106,7 @@ final class BackupRunner: ObservableObject {
                     includingPropertiesForKeys: [.isDirectoryKey],
                     options: [.skipsHiddenFiles]
                 ) else {
-                    throw NSError(domain: "BackupVault", code: -1, userInfo: [:])
+                    throw NSError(domain: "NestVault", code: -1, userInfo: [:])
                 }
                 var urls: [URL] = []
                 while let url = enumerator.nextObject() as? URL {
@@ -335,6 +335,8 @@ final class BackupRunner: ObservableObject {
                     }
                 }
 
+                if isCancelled && inFlight == 0 { break }
+
                 if inFlight > 0 {
                     await group.next()
                     inFlight -= 1
@@ -423,7 +425,7 @@ final class BackupRunner: ObservableObject {
             let (respData, response) = try await session.data(for: req)
             if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
                 let msg = String(data: respData, encoding: .utf8) ?? "(sem mensagem)"
-                throw NSError(domain: "BackupVault", code: http.statusCode,
+                throw NSError(domain: "NestVault", code: http.statusCode,
                               userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode) — \(msg.prefix(300))"])
             }
             if case .cachedRegister = action { return "cached" }
@@ -440,7 +442,7 @@ final class BackupRunner: ObservableObject {
             let (respData, response) = try await session.upload(for: req, fromFile: url)
             if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
                 let msg = String(data: respData, encoding: .utf8) ?? "(sem mensagem)"
-                throw NSError(domain: "BackupVault", code: http.statusCode,
+                throw NSError(domain: "NestVault", code: http.statusCode,
                               userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode) — \(msg.prefix(300))"])
             }
             return "upload"
@@ -460,7 +462,7 @@ final class BackupRunner: ObservableObject {
         if http.statusCode == 409 { return }
         if !(200..<300).contains(http.statusCode) {
             let msg = String(data: data, encoding: .utf8) ?? "(sem mensagem)"
-            throw NSError(domain: "BackupVault", code: http.statusCode,
+            throw NSError(domain: "NestVault", code: http.statusCode,
                           userInfo: [NSLocalizedDescriptionKey:
                             "HTTP \(http.statusCode) — \(msg.prefix(200))"])
         }
@@ -477,7 +479,7 @@ final class BackupRunner: ObservableObject {
         let (data, resp) = try await session.data(for: req)
         if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             let msg = String(data: data, encoding: .utf8) ?? "(sem mensagem)"
-            throw NSError(domain: "BackupVault", code: http.statusCode,
+            throw NSError(domain: "NestVault", code: http.statusCode,
                           userInfo: [NSLocalizedDescriptionKey:
                             "HTTP \(http.statusCode) — \(msg.prefix(200))"])
         }
@@ -535,7 +537,7 @@ final class BackupRunner: ObservableObject {
         return try await Task.detached(priority: .userInitiated) {
             let bufferSize = 1_048_576
             guard let stream = InputStream(url: url) else {
-                throw NSError(domain: "BackupVault", code: -1,
+                throw NSError(domain: "NestVault", code: -1,
                               userInfo: [NSLocalizedDescriptionKey:
                                 "Não foi possível abrir: \(url.path)"])
             }
@@ -550,7 +552,7 @@ final class BackupRunner: ObservableObject {
             while stream.hasBytesAvailable {
                 let read = stream.read(buffer, maxLength: bufferSize)
                 if read < 0 {
-                    throw stream.streamError ?? NSError(domain: "BackupVault", code: -1,
+                    throw stream.streamError ?? NSError(domain: "NestVault", code: -1,
                         userInfo: [NSLocalizedDescriptionKey: "Erro de leitura: \(url.path)"])
                 }
                 if read == 0 { break }

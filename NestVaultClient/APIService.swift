@@ -233,7 +233,7 @@ final class APIService: ObservableObject {
     // MARK: - Private helpers
 
     private func apiError(_ code: Int, _ message: String) -> NSError {
-        NSError(domain: "BackupVault", code: code,
+        NSError(domain: "NestVault", code: code,
                 userInfo: [NSLocalizedDescriptionKey: "HTTP \(code) — \(message.prefix(200))"])
     }
 }

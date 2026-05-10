@@ -35,17 +35,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @main
-struct BackupVaultApp: App {
+struct NestVaultApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var api      = APIService()
     @StateObject private var store    = ConfigStore()
     @StateObject private var power    = PowerMonitor()
     @StateObject private var schedule = ScheduleManager()
 
+    init() {
+        // TODO: Remover após algumas versões — migração de com.vcm.backupvault.app
+        LegacyMigration.runIfNeeded()
+    }
+
     var body: some Scene {
 
         // ── Main Window ──────────────────────────────────────────────
-        WindowGroup("BackupVault", id: "main") {
+        WindowGroup("NestVault", id: "main") {
             ContentView()
                 .environmentObject(api)
                 .environmentObject(store)

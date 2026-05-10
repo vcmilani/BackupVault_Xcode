@@ -273,7 +273,7 @@ struct SettingsView: View {
     // MARK: - About Tab
     var aboutTab: some View {
         Form {
-            Section("BackupVault para macOS") {
+            Section("NestVault para macOS") {
                 LabeledContent("settings.about.version", value: "2.3.0")
                 if !api.serverVersion.isEmpty {
                     LabeledContent(L("settings.about.server_version"), value: api.serverVersion)
