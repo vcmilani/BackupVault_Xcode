@@ -62,7 +62,7 @@
 		DA577628DA984FA4891C7EA7 /* BackupConfigsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupConfigsView.swift; sourceTree = "<group>"; };
 		E5F6A7B8C9D0E1F2A3B4C5D6 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Localizable.strings; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		F0B8F8E1FB5E4D6F80910BF6 /* CleanupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupView.swift; sourceTree = "<group>"; };
-		F28F537DE5F447A6A66D7516 /* NestVaultClient.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NestVaultClient.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F28F537DE5F447A6A66D7516 /* NestVault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NestVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F7D5F584D60E4B1A8B0FF983 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		FE65E70C406D4D9E9CE23554 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -81,7 +81,7 @@
 		80259EF5712E4C09A9E7D917 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				F28F537DE5F447A6A66D7516 /* NestVaultClient.app */,
+				F28F537DE5F447A6A66D7516 /* NestVault.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -145,7 +145,7 @@
 			);
 			name = NestVaultClient;
 			productName = NestVaultClient;
-			productReference = F28F537DE5F447A6A66D7516 /* NestVaultClient.app */;
+			productReference = F28F537DE5F447A6A66D7516 /* NestVault.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -264,7 +264,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.vcm.nestvaultclient.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = NestVault;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -409,7 +409,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.vcm.nestvaultclient.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = NestVault;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

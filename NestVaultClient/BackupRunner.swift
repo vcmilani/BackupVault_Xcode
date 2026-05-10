@@ -31,6 +31,12 @@ final class BackupRunner: ObservableObject {
         case upload                            // contentExists = false
     }
 
+    private struct ScannedFile {
+        let url: URL
+        let mtime: Double
+        let size: Int64
+    }
+
     private struct HashedFile {
         let url: URL
         let serverPath: String
@@ -95,29 +101,39 @@ final class BackupRunner: ObservableObject {
         let cache = await fetchPreviousVersionCache(label: label)
         if !cache.isEmpty { log(L("runner.cache_loaded", cache.count), .info) }
 
+        // Local hash cache — persists sha256 across runs; eliminates re-hashing for unchanged files
+        let hashCache = LocalHashCache(label: label)
+        await hashCache.load()
+        let hashCacheCount = await hashCache.count
+        if hashCacheCount > 0 { log(L("runner.hashcache_loaded", hashCacheCount), .info) }
+
         // 4. Walk filesystem (off main actor — avoids blocking UI for large directories)
+        //    Also captures mtime+size via URL resource values in one kernel pass,
+        //    so the classification step below needs no extra attributesOfItem calls.
         let excludes = profile.excludes
-        let fileURLs: [URL]
+        let scannedFiles: [ScannedFile]
         do {
-            fileURLs = try await Task.detached(priority: .userInitiated) {
-                let fm = FileManager.default
-                guard let enumerator = fm.enumerator(
+            scannedFiles = try await Task.detached(priority: .userInitiated) {
+                let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .contentModificationDateKey, .fileSizeKey]
+                guard let enumerator = FileManager.default.enumerator(
                     at: URL(fileURLWithPath: source),
-                    includingPropertiesForKeys: [.isDirectoryKey],
+                    includingPropertiesForKeys: Array(resourceKeys),
                     options: [.skipsHiddenFiles]
                 ) else {
                     throw NSError(domain: "NestVault", code: -1, userInfo: [:])
                 }
-                var urls: [URL] = []
+                var files: [ScannedFile] = []
                 while let url = enumerator.nextObject() as? URL {
                     if excludes.contains(url.lastPathComponent) {
                         enumerator.skipDescendants(); continue
                     }
-                    var isDir: ObjCBool = false
-                    fm.fileExists(atPath: url.path, isDirectory: &isDir)
-                    if !isDir.boolValue { urls.append(url) }
+                    let rv = try? url.resourceValues(forKeys: resourceKeys)
+                    if rv?.isDirectory == true { continue }
+                    let mtime = rv?.contentModificationDate?.timeIntervalSince1970 ?? 0
+                    let size  = Int64(rv?.fileSize ?? 0)
+                    files.append(ScannedFile(url: url, mtime: mtime, size: size))
                 }
-                return urls
+                return files
             }.value
         } catch {
             log(L("runner.source_unreadable", source), .error)
@@ -126,11 +142,12 @@ final class BackupRunner: ObservableObject {
             status = .failed; return
         }
 
-        stats.total = fileURLs.count
-        log(L("runner.files_found", fileURLs.count), .info)
+        stats.total = scannedFiles.count
+        log(L("runner.files_found", scannedFiles.count), .info)
 
         // 5. Build server path list (needed for sync later)
-        let serverPaths: [String] = fileURLs.map { url in
+        let serverPaths: [String] = scannedFiles.map { file in
+            let url = file.url
             guard !profile.prefix.isEmpty else { return url.path }
             let rel = url.path.hasPrefix(source)
                 ? String(url.path.dropFirst(source.count))
@@ -151,16 +168,19 @@ final class BackupRunner: ObservableObject {
         var fastEntries: [(url: URL, serverPath: String, sha256: String, mtime: Double)] = []
         var slowEntries: [(url: URL, serverPath: String, size: Int64, mtime: Double)] = []
 
-        for (url, serverPath) in zip(fileURLs, serverPaths) {
+        for (file, serverPath) in zip(scannedFiles, serverPaths) {
             guard !isCancelled else { break }
-            let attrs = (try? FileManager.default.attributesOfItem(atPath: url.path)) ?? [:]
-            let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-            let size  = (attrs[.size] as? NSNumber).map { Int64(truncatingIfNeeded: $0.int64Value) } ?? 0
-            if let cached = cache[serverPath], cached.mtime == mtime, cached.size == size {
-                fastEntries.append((url, serverPath, cached.sha256, mtime))
-            } else {
-                slowEntries.append((url, serverPath, size, mtime))
+            // Local disk cache (fastest: avoids hash computation and server round-trip)
+            if let sha256 = await hashCache.lookup(path: file.url.path, mtime: file.mtime, size: file.size) {
+                fastEntries.append((file.url, serverPath, sha256, file.mtime))
+                continue
             }
+            // Server version cache
+            if let cached = cache[serverPath], cached.mtime == file.mtime, cached.size == file.size {
+                fastEntries.append((file.url, serverPath, cached.sha256, file.mtime))
+                continue
+            }
+            slowEntries.append((file.url, serverPath, file.size, file.mtime))
         }
 
         if isCancelled {
@@ -177,34 +197,48 @@ final class BackupRunner: ObservableObject {
         let totalSlow = slowEntries.count
         let phase1Weight = totalSlow > 0 ? 0.4 : 0.0
 
+        let hashConcurrency = max(2, ProcessInfo.processInfo.activeProcessorCount)
         await withTaskGroup(of: HashedFile?.self) { group in
-            for entry in slowEntries {
-                guard !isCancelled else { break }
-                group.addTask { [weak self] in
-                    guard let self else { return nil }
-                    do {
-                        let (sha256, _) = try await self.computeSHA256Streaming(url: entry.url)
-                        return HashedFile(url: entry.url, serverPath: entry.serverPath,
-                                         sha256: sha256, size: entry.size, mtime: entry.mtime)
-                    } catch {
-                        if !(error is CancellationError) {
-                            await accumulator.recordError()
-                            await MainActor.run {
-                                self.log(L("runner.file_error", entry.url.lastPathComponent,
-                                           error.localizedDescription), .error)
+            var inFlight = 0
+            var index    = 0
+            var done     = 0
+
+            while index < slowEntries.count || inFlight > 0 {
+                while inFlight < hashConcurrency && index < slowEntries.count {
+                    guard !isCancelled else { break }
+                    let entry = slowEntries[index]
+                    index   += 1
+                    inFlight += 1
+                    group.addTask { [weak self] in
+                        guard let self else { return nil }
+                        do {
+                            let (sha256, _) = try await self.computeSHA256Streaming(url: entry.url)
+                            return HashedFile(url: entry.url, serverPath: entry.serverPath,
+                                             sha256: sha256, size: entry.size, mtime: entry.mtime)
+                        } catch {
+                            if !(error is CancellationError) {
+                                await accumulator.recordError()
+                                await MainActor.run {
+                                    self.log(L("runner.file_error", entry.url.lastPathComponent,
+                                               error.localizedDescription), .error)
+                                }
                             }
+                            return nil
                         }
-                        return nil
                     }
                 }
-            }
-            var done = 0
-            for await hf in group {
-                if let hf { hashedFiles.append(hf) }
-                done += 1
-                progress    = Double(done) / Double(max(totalSlow, 1)) * phase1Weight
-                currentFile = hf?.url.lastPathComponent ?? ""
-                DockProgress.shared.update(progress: progress)
+                if inFlight > 0, let result = await group.next() {
+                    inFlight -= 1
+                    done     += 1
+                    if let hf = result {
+                        hashedFiles.append(hf)
+                        await hashCache.set(path: hf.url.path, mtime: hf.mtime,
+                                            size: hf.size, sha256: hf.sha256)
+                    }
+                    progress    = Double(done) / Double(max(totalSlow, 1)) * phase1Weight
+                    currentFile = result?.url.lastPathComponent ?? ""
+                    DockProgress.shared.update(progress: progress)
+                }
             }
         }
 
@@ -369,6 +403,12 @@ final class BackupRunner: ObservableObject {
 
         // 7. Finalize
         await finalizeVersion(label: label, versionKey: versionKey, ok: stats.errors == 0)
+
+        // Persist hash cache pruned to the current file set
+        let walkedPaths = Set(scannedFiles.map { $0.url.path })
+        await hashCache.prune(keepingPaths: walkedPaths)
+        await hashCache.save()
+
         progress    = 1.0
         currentFile = ""
         status      = .done
@@ -535,7 +575,7 @@ final class BackupRunner: ObservableObject {
 
     private func computeSHA256Streaming(url: URL) async throws -> (sha256: String, size: Int) {
         return try await Task.detached(priority: .userInitiated) {
-            let bufferSize = 1_048_576
+            let bufferSize = 4_194_304  // 4 MB — fewer syscalls, better throughput than 1 MB
             guard let stream = InputStream(url: url) else {
                 throw NSError(domain: "NestVault", code: -1,
                               userInfo: [NSLocalizedDescriptionKey:
@@ -546,22 +586,24 @@ final class BackupRunner: ObservableObject {
 
             var hasher    = SHA256()
             var totalSize = 0
-            let buffer    = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+            let buffer    = UnsafeMutableRawBufferPointer.allocate(byteCount: bufferSize, alignment: 1)
             defer { buffer.deallocate() }
 
             while stream.hasBytesAvailable {
-                let read = stream.read(buffer, maxLength: bufferSize)
+                let read = stream.read(
+                    buffer.baseAddress!.assumingMemoryBound(to: UInt8.self),
+                    maxLength: bufferSize)
                 if read < 0 {
                     throw stream.streamError ?? NSError(domain: "NestVault", code: -1,
                         userInfo: [NSLocalizedDescriptionKey: "Erro de leitura: \(url.path)"])
                 }
                 if read == 0 { break }
-                hasher.update(data: Data(bytes: buffer, count: read))
+                // Update directly from raw buffer — avoids allocating a Data per chunk
+                hasher.update(bufferPointer: UnsafeRawBufferPointer(start: buffer.baseAddress, count: read))
                 totalSize += read
             }
 
-            let digest = hasher.finalize()
-            let sha256  = digest.compactMap { String(format: "%02x", $0) }.joined()
+            let sha256 = hasher.finalize().compactMap { String(format: "%02x", $0) }.joined()
             return (sha256, totalSize)
         }.value
     }
@@ -570,6 +612,55 @@ final class BackupRunner: ObservableObject {
 
     private func log(_ text: String, _ kind: LogEntry.Kind) {
         entries.append(LogEntry(text: text, kind: kind))
+    }
+}
+
+// MARK: - Local Hash Cache (persists sha256 across runs to skip re-hashing unchanged files)
+
+private actor LocalHashCache {
+    private struct Entry: Codable {
+        let mtime:  Double
+        let size:   Int64
+        let sha256: String
+    }
+
+    private var store: [String: Entry] = [:]
+    private let fileURL: URL
+
+    var count: Int { store.count }
+
+    init(label: String) {
+        let appSupport = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("NestVaultClient", isDirectory: true)
+        try? FileManager.default.createDirectory(at: appSupport, withIntermediateDirectories: true)
+        let safe = label.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? label
+        fileURL = appSupport.appendingPathComponent("\(safe)_hashcache.json")
+    }
+
+    func load() {
+        guard let data    = try? Data(contentsOf: fileURL),
+              let decoded = try? JSONDecoder().decode([String: Entry].self, from: data)
+        else { return }
+        store = decoded
+    }
+
+    func lookup(path: String, mtime: Double, size: Int64) -> String? {
+        guard let e = store[path], e.mtime == mtime, e.size == size else { return nil }
+        return e.sha256
+    }
+
+    func set(path: String, mtime: Double, size: Int64, sha256: String) {
+        store[path] = Entry(mtime: mtime, size: size, sha256: sha256)
+    }
+
+    func prune(keepingPaths paths: Set<String>) {
+        store = store.filter { paths.contains($0.key) }
+    }
+
+    func save() {
+        guard let data = try? JSONEncoder().encode(store) else { return }
+        try? data.write(to: fileURL, options: .atomic)
     }
 }
 
