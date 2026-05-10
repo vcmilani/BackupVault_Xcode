@@ -1,0 +1,315 @@
+/* App */
+"app.refresh_backups" = "Atualizar Backups";
+"app.check_connection" = "Verificar Conexão";
+
+/* Common */
+"common.connected"    = "Conectado";
+"common.disconnected" = "Desconectado";
+"common.cancel"       = "Cancelar";
+"common.close"        = "Fechar";
+
+/* Dashboard */
+"dashboard.title"              = "Dashboard";
+"dashboard.subtitle"           = "Visão geral dos backups";
+"dashboard.refresh"            = "Atualizar";
+"dashboard.server_unreachable" = "Servidor inacessível";
+"dashboard.active_backups"     = "Backups ativos";
+"dashboard.how_it_works"       = "Como funciona";
+"dashboard.stat.backups"       = "Backups";
+"dashboard.stat.versions"      = "Versões";
+"dashboard.stat.files"         = "Arquivos";
+"dashboard.stat.storage"       = "Storage";
+"dashboard.stat.versions_label" = "versões";
+"dashboard.last_version"       = "última versão";
+
+"dashboard.info.versions.title" = "Versionamento";
+"dashboard.info.dedup.title"    = "Deduplicação";
+"dashboard.info.deleted.title"  = "Snapshots";
+"dashboard.info.deleted.body"   = "Cada versão é um snapshot completo e independente. Arquivos ausentes de uma versão simplesmente não aparecem nela — sem soft-delete.";
+"dashboard.info.isolation.title" = "Isolamento";
+
+/* General */
+"general.storage" = "storage";
+
+/* Settings */
+"settings.general"          = "Geral";
+"settings.server"           = "Servidor";
+"settings.about"            = "Sobre";
+"settings.startup"          = "Inicialização";
+"settings.start_on_login"   = "Iniciar ao fazer login";
+"settings.requires_approval" = "Requer aprovação nas Configurações do Sistema";
+"settings.open_settings"    = "Abrir Configurações";
+"settings.system_status"    = "Status do sistema";
+"settings.network"          = "Rede";
+"settings.power"            = "Energia";
+"settings.backoff"          = "Backoff de conexão";
+"settings.save_button"      = "Salvar e Testar";
+"settings.connection"       = "Conexão";
+"settings.server_url"       = "URL do Servidor";
+"settings.api_key"          = "API Key";
+"settings.show"             = "Mostrar";
+"settings.hide"             = "Ocultar";
+"settings.current_status"   = "Status Atual";
+"settings.tips_title"       = "Dicas de Configuração";
+"settings.about.version"        = "Versão do app";
+"settings.about.server_version" = "Versão do servidor";
+"settings.about.min_macos"      = "Mínimo macOS";
+"settings.about.server_stack"   = "Servidor";
+
+/* Cleanup */
+"cleanup.title"           = "Limpeza";
+"cleanup.subtitle"        = "Remover versões antigas e liberar espaço";
+"cleanup.specific"        = "Backup específico";
+"cleanup.select_backup"   = "Selecione um backup…";
+"cleanup.keep_desc_full"  = "Mantém as %d versões mais recentes por label. Versões mais antigas e seus arquivos órfãos são removidos permanentemente.";
+"cleanup.preview_title"   = "Pré-visualização";
+"cleanup.removed_total"   = "%d versão(ões) será(ão) removida(s)";
+"cleanup.removed_none"    = "Nada a remover com as configurações atuais";
+"cleanup.start_btn"       = "Executar Limpeza";
+"cleanup.start_running"   = "Executando…";
+"cleanup.confirm_btn"     = "Confirmar";
+"cleanup.result_title"    = "Limpeza concluída";
+
+/* Runner */
+"runner.cancel_requested"      = "Cancelamento solicitado…";
+"runner.starting"              = "Iniciando backup: %@";
+"runner.source"                = "Origem: %@";
+"runner.backup_registered"     = "Backup registrado no servidor";
+"runner.backup_register_error" = "Erro ao registrar backup: %@";
+"runner.version_created"       = "Versão criada: %@";
+"runner.version_create_error"  = "Erro ao criar versão: %@";
+"runner.source_unreadable"     = "Não foi possível ler: %@";
+"runner.files_found"           = "Arquivos encontrados: %d";
+"runner.file_error"            = "Erro: %@ — %@";
+"runner.cancelled"             = "Backup cancelado — versão marcada como failed.";
+"runner.sync_done"             = "Sync concluído";
+"runner.sync_skipped"          = "Sync ignorado: %@";
+"runner.cache_loaded"          = "Cache mtime+size: %d arquivos da versão anterior";
+"runner.hashcache_loaded"      = "Cache local de hashes: %d arquivos";
+"runner.batch_mode"            = "Modo batch ativado (servidor v2.6+)";
+"runner.classifying"           = "Cache: %d  Para verificar: %d";
+"runner.batch_check_error"     = "Erro no batch check (arquivos serão enviados): %@";
+"runner.summary"               = "Enviados: %d  Registrados: %d  Cacheados: %d  Ignorados: %d  Erros: %d";
+
+/* Version detail */
+"version.detail.files"         = "Arquivos";
+"version.detail.size"          = "Tamanho";
+"version.detail.finished"      = "Finalizado em";
+"version.detail.delete_btn"    = "Remover versão";
+"version.detail.confirm_title" = "Remover esta versão?";
+"version.detail.confirm_btn"   = "Remover";
+"version.detail.confirm_msg"   = "A versão %@ e seus arquivos órfãos serão removidos permanentemente do servidor.";
+"version.detail.deleted"       = "Versão removida. %d arquivo(s) liberado(s) do storage.";
+
+/* Backoff */
+"backoff.ready" = "Pronto para tentar";
+"backoff.next"  = "Tentar em %ds";
+
+/* Schedule */
+"schedule.frequency"       = "Frequência";
+"schedule.time_of_day"     = "Horário";
+"schedule.hour"            = "Hora";
+"schedule.minute"          = "Minuto";
+"schedule.day_of_week"     = "Dia da semana";
+"schedule.interval"        = "Intervalo";
+"schedule.every_n_minutes" = "A cada N minutos";
+"schedule.custom_hint"     = "Mínimo recomendado: 30 minutos.";
+"schedule.next_run"        = "Próxima execução";
+"schedule.last_run"        = "Última execução";
+"schedule.freq.off"        = "Desativado";
+"schedule.freq.hourly"     = "A cada hora";
+"schedule.freq.daily"      = "Diário";
+"schedule.freq.weekly"     = "Semanal";
+"schedule.freq.custom"     = "Personalizado";
+"schedule.sun"             = "Domingo";
+"schedule.mon"             = "Segunda-feira";
+"schedule.tue"             = "Terça-feira";
+"schedule.wed"             = "Quarta-feira";
+"schedule.thu"             = "Quinta-feira";
+"schedule.fri"             = "Sexta-feira";
+"schedule.sat"             = "Sábado";
+"schedule.summary.off"     = "Agendamento desativado";
+"schedule.summary.hourly"  = "A cada hora";
+"schedule.summary.daily"   = "Diário";
+"schedule.summary.weekly"  = "Semanal";
+"schedule.summary.custom"  = "Intervalo personalizado";
+
+/* Nav */
+"nav.dashboard"  = "Dashboard";
+"nav.backups"    = "Backups";
+"nav.my_backups" = "Meus Backups";
+"nav.cleanup"    = "Limpeza";
+
+/* Sidebar */
+"sidebar.connected"    = "Conectado";
+"sidebar.disconnected" = "Desconectado";
+"sidebar.reconnect"    = "Reconectar";
+
+/* Menu Bar */
+"menubar.connected"     = "Conectado";
+"menubar.disconnected"  = "Desconectado";
+"menubar.no_backups"    = "Nenhum backup encontrado";
+"menubar.no_connection" = "Sem conexão";
+"menubar.open"          = "Abrir NestVault";
+"menubar.settings"      = "Configurações";
+"menubar.quit"          = "Sair";
+"menubar.stat.backups"  = "Backups";
+"menubar.stat.versions" = "Versões";
+"menubar.stat.storage"  = "Storage";
+"menubar.refresh"       = "Atualizar";
+"menubar.more"          = "+ %d mais…";
+"menubar.manual_badge"  = "Manual";
+
+/* Common (additions) */
+"common.delete"  = "Excluir";
+"common.save"    = "Salvar";
+"common.none"    = "Nenhum";
+"common.not_set" = "não configurado";
+
+/* My Backups */
+"mybackups.title"               = "Meus Backups";
+"mybackups.none"                = "Nenhuma configuração";
+"mybackups.add"                 = "Adicionar";
+"mybackups.edit"                = "Editar";
+"mybackups.run"                 = "Executar Agora";
+"mybackups.run_queue"           = "Executar Fila";
+"mybackups.new_config"          = "Nova Configuração";
+"mybackups.select"              = "Selecione uma configuração";
+"mybackups.select_hint"         = "Escolha ou crie uma nova configuração de backup";
+"mybackups.inactive"            = "Inativo";
+"mybackups.delete_config"       = "Excluir Configuração";
+"mybackups.delete_server"       = "Excluir do Servidor";
+"mybackups.delete_server_title" = "Excluir backup do servidor?";
+"mybackups.delete_server_msg"   = "Todos os dados e versões de \"%@\" serão apagados permanentemente do servidor.";
+"mybackups.delete_config_title" = "Excluir configuração?";
+"mybackups.delete_config_msg"   = "\"%@\" será removida permanentemente.";
+"mybackups.no_label"            = "sem label";
+"mybackups.not_configured"      = "não configurado";
+
+/* Editor */
+"editor.new"               = "Nova Configuração";
+"editor.edit"              = "Editar Configuração";
+"editor.tab.general"       = "Geral";
+"editor.tab.server"        = "Servidor";
+"editor.tab.schedule"      = "Agendamento";
+"editor.tab.excludes"      = "Exclusões";
+"editor.workers_label"     = "Workers Paralelos";
+"editor.excludes.title"    = "Exclusões";
+"editor.excludes.add_btn"  = "Adicionar";
+"editor.excludes.none"     = "Nenhuma exclusão definida";
+"editor.excludes.count"    = "%d itens";
+"editor.excludes.placeholder" = "Adicionar exclusão (ex: node_modules)";
+"editor.section.identification" = "Identificação";
+"editor.field.name"        = "Nome da configuração";
+"editor.field.label"       = "Label (ex: macbook-joao)";
+"editor.field.enabled"     = "Ativa";
+"editor.section.source"    = "Origem";
+"editor.field.source_path" = "Pasta de origem";
+"editor.field.pick"        = "Escolher…";
+"editor.field.prefix"      = "Prefixo no servidor (opcional)";
+"editor.section.server"    = "Servidor";
+"editor.field.server_url"  = "URL do servidor (vazio = padrão global)";
+"editor.field.server_using_default" = "Usando padrão: %@";
+"editor.field.server_using" = "Usando: %@";
+"editor.section.performance" = "Performance";
+"editor.workers_range"     = "Entre 1 e 16.";
+"editor.workers_hint_1"    = "Recomendado para Pi com SD ou arquivos grandes (>100 MB)";
+"editor.workers_hint_2"    = "Recomendado para Pi com HD externo USB";
+"editor.workers_hint_3"    = "Recomendado para Pi com SSD";
+"editor.workers_hint_4"    = "Alto paralelismo — ideal para muitos arquivos pequenos";
+"editor.panel.title"       = "Selecione a pasta de origem";
+"editor.panel.prompt"      = "Selecionar";
+
+/* Info Cards */
+"card.source_folder"  = "Pasta de Origem";
+"card.server"         = "Servidor";
+"card.workers"        = "Workers Paralelos";
+"card.prefix"         = "Prefixo no Servidor";
+"card.excludes"       = "Exclusões (%d)";
+"card.cli"            = "Comando equivalente (Python)";
+"card.not_configured" = "Não configurado";
+"card.workers_hint_1" = "Ideal para Pi com SD ou arquivos grandes";
+"card.workers_hint_2" = "Ideal para Pi com HD externo USB";
+"card.workers_hint_3" = "Ideal para Pi com SSD";
+"card.workers_hint_4" = "Alto paralelismo — muitos arquivos pequenos";
+
+/* Queue */
+"queue.title"              = "Fila de Backup";
+"queue.select_all"         = "Selecionar Todos";
+"queue.start"              = "Executar %d Backup(s)";
+"queue.none_available"     = "Nenhum backup disponível";
+"queue.none_hint"          = "Crie pelo menos uma configuração ativa, com label e pasta definidos.";
+"queue.waiting"            = "Aguardando";
+"queue.running"            = "Executando";
+"queue.done"               = "Concluído";
+"queue.failed"             = "Falhou";
+"queue.cancelled"          = "Cancelado";
+"queue.skipped"            = "Ignorado";
+"queue.stop"               = "Parar Fila";
+"queue.run_again"          = "Executar Novamente";
+"queue.stat.done"          = "Concluídos";
+"queue.stat.failed"        = "Falhos";
+"queue.stat.other"         = "Outros";
+"queue.subtitle.selecting" = "%d de %d selecionada(s)";
+"queue.subtitle.running"   = "%d na fila";
+"queue.subtitle.done"      = "Concluído";
+
+/* Runner (UI state labels) */
+"runner.waiting"         = "Aguardando";
+"runner.running"         = "Executando";
+"runner.done"            = "Concluído";
+"runner.failed"          = "Falhou";
+"runner.cancelled"       = "Cancelado";
+"runner.start"           = "Iniciar Backup";
+"runner.run_again"       = "Executar Novamente";
+"runner.stop"            = "Parar";
+"runner.cancel"          = "Cancelar";
+"runner.close"           = "Fechar";
+"runner.stat.uploaded"   = "Enviados";
+"runner.stat.registered" = "Registrados";
+"runner.stat.cached"     = "Cacheados";
+"runner.stat.ignored"    = "Ignorados";
+"runner.stat.errors"     = "Erros";
+
+/* Backups View */
+"backups.title"          = "Backups";
+"backups.select"         = "Selecione um backup";
+"backups.select_version" = "Selecione uma versão";
+"backups.no_versions"    = "Nenhuma versão";
+"backups.no_files"       = "Nenhum arquivo";
+"backups.loading"        = "Carregando…";
+"backups.filter_files"   = "Filtrar arquivos";
+"backups.col.file"       = "Arquivo";
+"backups.col.size"       = "Tamanho";
+"backups.col.sha"        = "SHA-256";
+"backups.delete_btn"     = "Excluir";
+"backups.delete_version" = "Excluir versão";
+"backups.delete_title"   = "Excluir versão?";
+"backups.delete_msg"     = "A versão %@ será permanentemente removida.";
+"backups.no_backup"      = "Nenhum backup";
+"backups.versions_count" = "%d versões · %@";
+"backups.files_count"    = "%d arquivos";
+
+/* Cleanup (additions) */
+"cleanup.target_label"   = "Alvo";
+"cleanup.all_backups"    = "Todos os backups";
+"cleanup.keep_label"     = "Versões a manter";
+"cleanup.keep_count_fmt" = "%d versões mais recentes";
+"cleanup.col.label"      = "Label";
+"cleanup.col.current"    = "Atuais";
+"cleanup.col.keep"       = "Manter";
+"cleanup.col.remove"     = "Remover";
+"cleanup.stat.labels"    = "Labels";
+"cleanup.stat.removed"   = "Versões removidas";
+"cleanup.stat.freed"     = "Arquivos liberados";
+"cleanup.result_detail"  = "mantidas: %d  removidas: %d  storage: %d";
+"cleanup.confirm_title"  = "Confirmar limpeza?";
+"cleanup.confirm_msg"    = "Esta ação é irreversível. %d versão(ões) serão permanentemente removidas do servidor.";
+
+/* Queue Schedule (aba Configurações) */
+"settings.queue_schedule"          = "Agendamento";
+"settings.queue_sched.title"       = "Agendamento da Fila";
+"settings.queue_sched.subtitle"    = "Executar todos os backups ativos em um agendamento recorrente";
+"settings.queue_sched.last_run"    = "Última execução";
+"settings.queue_sched.next_run"    = "Próxima execução";
+"settings.queue_sched.never"       = "Nunca";
