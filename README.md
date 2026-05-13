@@ -1,6 +1,6 @@
 # NestVault — macOS Client
 
-Native macOS SwiftUI client for the [backup_files](https://github.com/vcmilani/backup_files) self-hosted backup server.
+Native macOS SwiftUI client for the [NestVault](https://github.com/vcmilani/NestVault) self-hosted backup server.
 
 ---
 
