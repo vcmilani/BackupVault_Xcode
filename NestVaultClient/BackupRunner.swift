@@ -473,7 +473,9 @@ final class BackupRunner: ObservableObject {
 
         case .upload:
             var req = try api.buildRequest("/upload", method: "POST", body: nil)
-            req.timeoutInterval = 300
+            // Large files can take a long time to encrypt/store server-side after the body is
+            // fully received — use a generous idle timeout so the server has room to process.
+            req.timeoutInterval = 3600
             req.setValue(label,                      forHTTPHeaderField: "X-Backup-Label")
             req.setValue(versionKey,                 forHTTPHeaderField: "X-Version-Key")
             req.setValue(pathB64,                    forHTTPHeaderField: "X-Original-Path")
