@@ -90,6 +90,8 @@
 "runner.classifying"           = "Cache hits: %d  To check: %d";
 "runner.batch_check_error"     = "Batch check error (files will be uploaded): %@";
 "runner.summary"               = "Uploaded: %d  Registered: %d  Cached: %d  Ignored: %d  Errors: %d";
+"runner.absorb_done"           = "Absorb: %d files inherited, %d skipped";
+"runner.absorb_error"          = "Absorb failed: %@";
 
 /* Version detail */
 "version.detail.files"         = "Files";
@@ -190,6 +192,9 @@
 "editor.workers_hint_4"    = "High parallelism — best for many small files";
 "editor.panel.title"       = "Select source folder";
 "editor.panel.prompt"      = "Select";
+"editor.section.mode"      = "Mode";
+"editor.field.accumulate"  = "Accumulative mode";
+"editor.field.accumulate_hint" = "Inherits file references from previous versions after finishing. Ideal for external drives connected periodically.";
 
 /* Info Cards */
 "card.source_folder"  = "Source Folder";
@@ -203,6 +208,7 @@
 "card.workers_hint_2" = "Ideal for Pi with external USB HDD";
 "card.workers_hint_3" = "Ideal for Pi with SSD";
 "card.workers_hint_4" = "High parallelism — many small files";
+"card.accumulate"     = "Accumulative Mode";
 
 /* Queue */
 "queue.title"              = "Backup Queue";
@@ -241,6 +247,7 @@
 "runner.stat.cached"     = "Cached";
 "runner.stat.ignored"    = "Ignored";
 "runner.stat.errors"     = "Errors";
+"runner.stat.inherited"  = "Inherited";
 
 /* Backups View */
 "backups.title"          = "Backups";

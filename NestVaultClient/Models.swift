@@ -276,17 +276,41 @@ struct BackupProfile: Codable, Identifiable, Hashable {
     var lastRun: Date?
     var lastRunStatus: String?     // "done" / "failed" / "cancelled"
 
+    // Accumulative mode (v2.8)
+    var accumulate: Bool = false
+
     init(name: String = "Novo Backup", label: String = "", sourcePath: String = "",
          excludes: [String] = [], workers: Int = 4, prefix: String = "",
          serverOverride: String = "", enabled: Bool = true,
          schedule: BackupSchedule = BackupSchedule(),
-         lastRun: Date? = nil, lastRunStatus: String? = nil) {
+         lastRun: Date? = nil, lastRunStatus: String? = nil,
+         accumulate: Bool = false) {
         self.name = name; self.label = label; self.sourcePath = sourcePath
         self.excludes = excludes; self.workers = workers; self.prefix = prefix
         self.serverOverride = serverOverride; self.enabled = enabled
         self.schedule = schedule
         self.lastRun  = lastRun
         self.lastRunStatus = lastRunStatus
+        self.accumulate = accumulate
+    }
+
+    // Custom decoder: uses decodeIfPresent for fields added after v1.0 so that
+    // existing UserDefaults data (missing those keys) still loads correctly.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id             = try c.decode(UUID.self,     forKey: .id)
+        name           = try c.decode(String.self,   forKey: .name)
+        label          = try c.decode(String.self,   forKey: .label)
+        sourcePath     = try c.decode(String.self,   forKey: .sourcePath)
+        excludes       = try c.decode([String].self, forKey: .excludes)
+        workers        = try c.decode(Int.self,      forKey: .workers)
+        prefix         = try c.decode(String.self,   forKey: .prefix)
+        serverOverride = try c.decode(String.self,   forKey: .serverOverride)
+        enabled        = try c.decode(Bool.self,     forKey: .enabled)
+        schedule       = try c.decodeIfPresent(BackupSchedule.self, forKey: .schedule) ?? BackupSchedule()
+        lastRun        = try c.decodeIfPresent(Date.self,           forKey: .lastRun)
+        lastRunStatus  = try c.decodeIfPresent(String.self,         forKey: .lastRunStatus)
+        accumulate     = try c.decodeIfPresent(Bool.self,           forKey: .accumulate) ?? false
     }
 
     func cliCommand(defaultServer: String) -> String {
@@ -299,11 +323,26 @@ struct BackupProfile: Codable, Identifiable, Hashable {
         ]
         if !prefix.isEmpty   { parts.append("    --prefix \(prefix)") }
         if !excludes.isEmpty { parts.append("    --exclude \(excludes.joined(separator: " "))") }
+        if accumulate        { parts.append("    --absorb") }
         return parts.joined(separator: " \\\n")
     }
 
     static func == (lhs: BackupProfile, rhs: BackupProfile) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
+}
+
+// MARK: - Absorb  (POST /backups/{label}/versions/{key}/absorb)
+
+struct AbsorbRequest: Encodable {
+    let sourceVersionKey: String
+    enum CodingKeys: String, CodingKey {
+        case sourceVersionKey = "source_version_key"
+    }
+}
+
+struct AbsorbResponse: Decodable {
+    let inherited: Int
+    let skipped: Int
 }
 
 // MARK: - ISO 8601 parser (handles both ISO and SQLite "YYYY-MM-DD HH:MM:SS")

@@ -75,6 +75,10 @@ struct BackupRunnerSheet: View {
                     MiniRunStat(value: "\(runner.stats.ignored)",    label: "runner.stat.ignored",    color: .secondary)
                     Divider()
                     MiniRunStat(value: "\(runner.stats.errors)",     label: "runner.stat.errors",     color: .red)
+                    if runner.stats.inherited > 0 {
+                        Divider()
+                        MiniRunStat(value: "\(runner.stats.inherited)", label: "runner.stat.inherited", color: .indigo)
+                    }
                 }
                 .frame(height: 56)
                 Divider()
