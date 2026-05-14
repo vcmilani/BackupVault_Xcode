@@ -119,7 +119,7 @@ final class BackupRunner: ObservableObject {
                 guard let enumerator = FileManager.default.enumerator(
                     at: URL(fileURLWithPath: source),
                     includingPropertiesForKeys: Array(resourceKeys),
-                    options: [.skipsHiddenFiles]
+                    options: []
                 ) else {
                     throw NSError(domain: "NestVault", code: -1, userInfo: [:])
                 }
@@ -129,7 +129,7 @@ final class BackupRunner: ObservableObject {
                         enumerator.skipDescendants(); continue
                     }
                     let rv = try? url.resourceValues(forKeys: resourceKeys)
-                    if rv?.isDirectory == true { continue }
+                    if rv?.isDirectory != false { continue }
                     let mtime = rv?.contentModificationDate?.timeIntervalSince1970 ?? 0
                     let size  = Int64(rv?.fileSize ?? 0)
                     files.append(ScannedFile(url: url, mtime: mtime, size: size))
@@ -498,7 +498,9 @@ final class BackupRunner: ObservableObject {
 
         case .upload:
             var req = try api.buildRequest("/upload", method: "POST", body: nil)
-            req.timeoutInterval = 300
+            // Large files can take a long time to encrypt/store server-side after the body is
+            // fully received — use a generous idle timeout so the server has room to process.
+            req.timeoutInterval = 3600
             req.setValue(label,                      forHTTPHeaderField: "X-Backup-Label")
             req.setValue(versionKey,                 forHTTPHeaderField: "X-Version-Key")
             req.setValue(pathB64,                    forHTTPHeaderField: "X-Original-Path")
