@@ -90,6 +90,8 @@
 "runner.classifying"           = "Cache: %d  Para verificar: %d";
 "runner.batch_check_error"     = "Erro no batch check (arquivos serão enviados): %@";
 "runner.summary"               = "Enviados: %d  Registrados: %d  Cacheados: %d  Ignorados: %d  Erros: %d";
+"runner.absorb_done"           = "Absorb: %d arquivos herdados, %d ignorados";
+"runner.absorb_error"          = "Absorb falhou: %@";
 
 /* Version detail */
 "version.detail.files"         = "Arquivos";
@@ -219,6 +221,9 @@
 "editor.workers_hint_4"    = "Alto paralelismo — ideal para muitos arquivos pequenos";
 "editor.panel.title"       = "Selecione a pasta de origem";
 "editor.panel.prompt"      = "Selecionar";
+"editor.section.mode"      = "Modo";
+"editor.field.accumulate"  = "Modo acumulativo";
+"editor.field.accumulate_hint" = "Herda referências de arquivos de versões anteriores ao finalizar. Ideal para HDs externos conectados periodicamente.";
 
 /* Info Cards */
 "card.source_folder"  = "Pasta de Origem";
@@ -232,6 +237,7 @@
 "card.workers_hint_2" = "Ideal para Pi com HD externo USB";
 "card.workers_hint_3" = "Ideal para Pi com SSD";
 "card.workers_hint_4" = "Alto paralelismo — muitos arquivos pequenos";
+"card.accumulate"     = "Modo Acumulativo";
 
 /* Queue */
 "queue.title"              = "Fila de Backup";
@@ -270,6 +276,7 @@
 "runner.stat.cached"     = "Cacheados";
 "runner.stat.ignored"    = "Ignorados";
 "runner.stat.errors"     = "Erros";
+"runner.stat.inherited"  = "Herdados";
 
 /* Backups View */
 "backups.title"          = "Backups";

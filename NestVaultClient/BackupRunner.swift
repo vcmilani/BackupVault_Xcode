@@ -22,6 +22,7 @@ final class BackupRunner: ObservableObject {
 
     struct Stats {
         var total = 0, uploaded = 0, registered = 0, cached = 0, ignored = 0, errors = 0
+        var inherited = 0, skipped = 0
     }
 
     private enum FileAction {
@@ -98,7 +99,7 @@ final class BackupRunner: ObservableObject {
         }
 
         // 3. Previous version cache (mtime+size fast path — avoids SHA-256 for unchanged files)
-        let cache = await fetchPreviousVersionCache(label: label)
+        let (cache, prevDoneKey) = await fetchPreviousVersionCache(label: label)
         if !cache.isEmpty { log(L("runner.cache_loaded", cache.count), .info) }
 
         // Local hash cache — persists sha256 across runs; eliminates re-hashing for unchanged files
@@ -404,6 +405,20 @@ final class BackupRunner: ObservableObject {
         // 7. Finalize
         await finalizeVersion(label: label, versionKey: versionKey, ok: stats.errors == 0)
 
+        // 8. Absorb (accumulative mode — inherit file references from previous version)
+        if profile.accumulate, stats.errors == 0, let prevDoneKey {
+            do {
+                let result = try await api.absorb(
+                    session: session, label: label,
+                    versionKey: versionKey, sourceVersionKey: prevDoneKey)
+                stats.inherited = result.inherited
+                stats.skipped   = result.skipped
+                log(L("runner.absorb_done", result.inherited, result.skipped), .success)
+            } catch {
+                log(L("runner.absorb_error", error.localizedDescription), .warning)
+            }
+        }
+
         // Persist hash cache pruned to the current file set
         let walkedPaths = Set(scannedFiles.map { $0.url.path })
         await hashCache.prune(keepingPaths: walkedPaths)
@@ -426,16 +441,26 @@ final class BackupRunner: ObservableObject {
         url: URL, label: String, versionKey: String,
         serverPath: String, mtime: Double
     ) async throws -> String {
+        var currentAction = action
         var lastError: Error?
         for attempt in 1...maxRetries {
             guard !isCancelled else { throw CancellationError() }
             do {
-                return try await executeAction(action, url: url, label: label,
+                return try await executeAction(currentAction, url: url, label: label,
                                                versionKey: versionKey,
                                                serverPath: serverPath, mtime: mtime)
             } catch {
                 lastError = error
                 guard !isCancelled, attempt < maxRetries else { break }
+                // Register-only returned 400 "content not found in storage" — server lost the
+                // cached file. Escalate to a full upload instead of retrying the same action.
+                if (error as NSError).code == 400 {
+                    switch currentAction {
+                    case .cachedRegister, .register:
+                        currentAction = .upload
+                    default: break
+                    }
+                }
                 try? await Task.sleep(nanoseconds: UInt64(500_000_000) * UInt64(attempt))
             }
         }
@@ -534,12 +559,12 @@ final class BackupRunner: ObservableObject {
         return versionKey
     }
 
-    private func fetchPreviousVersionCache(label: String) async -> [String: FileCache] {
+    private func fetchPreviousVersionCache(label: String) async -> (cache: [String: FileCache], prevDoneKey: String?) {
         guard let versions = try? await api.fetchVersions(label: label),
               let doneVersion = versions.first(where: { $0.isDone })
-        else { return [:] }
+        else { return ([:], nil) }
         guard let files = try? await api.fetchFiles(label: label, versionKey: doneVersion.versionKey)
-        else { return [:] }
+        else { return ([:], nil) }
         var cache: [String: FileCache] = [:]
         cache.reserveCapacity(files.count)
         for file in files {
@@ -549,7 +574,7 @@ final class BackupRunner: ObservableObject {
                 size:   file.size
             )
         }
-        return cache
+        return (cache, doneVersion.versionKey)
     }
 
     private func syncVersion(label: String, versionKey: String, paths: [String]) async throws -> Bool {

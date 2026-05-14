@@ -265,6 +265,12 @@ struct ProfileDetailView: View {
                             .font(.body.monospaced())
                             .foregroundStyle(profile.prefix.isEmpty ? .secondary : .primary)
                     }
+                    if profile.accumulate {
+                        ProfileInfoCard(title: L("card.accumulate"), icon: "arrow.triangle.merge", iconColor: .indigo) {
+                            Text("editor.field.accumulate_hint")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
                 }
 
                 // Excludes
@@ -457,6 +463,11 @@ struct ProfileEditorSheet: View {
                                     }
                             }
                             Text("\(L("editor.workers_range")) \(workersHint(draft.workers))")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Section("editor.section.mode") {
+                            Toggle("editor.field.accumulate", isOn: $draft.accumulate)
+                            Text("editor.field.accumulate_hint")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }

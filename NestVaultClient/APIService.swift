@@ -210,6 +210,21 @@ final class APIService: ObservableObject {
         return results
     }
 
+    // MARK: - Absorb
+
+    func absorb(session: URLSession, label: String,
+                versionKey: String, sourceVersionKey: String) async throws -> AbsorbResponse {
+        let body = try JSONEncoder().encode(AbsorbRequest(sourceVersionKey: sourceVersionKey))
+        let req  = try buildRequest(
+            "/backups/\(label.urlSafe)/versions/\(versionKey.urlSafe)/absorb",
+            method: "POST", body: body)
+        let (data, resp) = try await session.data(for: req)
+        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw apiError(http.statusCode, String(data: data, encoding: .utf8) ?? "")
+        }
+        return try JSONDecoder().decode(AbsorbResponse.self, from: data)
+    }
+
     // MARK: - Request Builder
 
     func buildRequest(_ path: String, method: String, body: Data?) throws -> URLRequest {
