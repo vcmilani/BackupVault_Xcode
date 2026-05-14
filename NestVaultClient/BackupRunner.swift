@@ -129,7 +129,7 @@ final class BackupRunner: ObservableObject {
                         enumerator.skipDescendants(); continue
                     }
                     let rv = try? url.resourceValues(forKeys: resourceKeys)
-                    if rv?.isDirectory == true { continue }
+                    if rv?.isDirectory != false { continue }
                     let mtime = rv?.contentModificationDate?.timeIntervalSince1970 ?? 0
                     let size  = Int64(rv?.fileSize ?? 0)
                     files.append(ScannedFile(url: url, mtime: mtime, size: size))
