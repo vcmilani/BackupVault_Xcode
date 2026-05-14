@@ -220,7 +220,7 @@ final class BackupRunner: ObservableObject {
                             if !(error is CancellationError) {
                                 await accumulator.recordError()
                                 await MainActor.run {
-                                    self.log(L("runner.file_error", entry.url.lastPathComponent,
+                                    self.log(L("runner.file_error", entry.url.path,
                                                error.localizedDescription), .error)
                                 }
                             }
@@ -357,7 +357,7 @@ final class BackupRunner: ObservableObject {
                             if !(error is CancellationError) {
                                 await accumulator.recordError()
                                 await MainActor.run {
-                                    self.log(L("runner.file_error", item.url.lastPathComponent,
+                                    self.log(L("runner.file_error", item.url.path,
                                                error.localizedDescription), .error)
                                 }
                             }
