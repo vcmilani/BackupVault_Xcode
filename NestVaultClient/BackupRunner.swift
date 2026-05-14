@@ -119,7 +119,7 @@ final class BackupRunner: ObservableObject {
                 guard let enumerator = FileManager.default.enumerator(
                     at: URL(fileURLWithPath: source),
                     includingPropertiesForKeys: Array(resourceKeys),
-                    options: [.skipsHiddenFiles]
+                    options: []
                 ) else {
                     throw NSError(domain: "NestVault", code: -1, userInfo: [:])
                 }
