@@ -2,6 +2,7 @@ import SwiftUI
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
         let nc = NotificationCenter.default
         nc.addObserver(self, selector: #selector(windowWillClose),
                        name: NSWindow.willCloseNotification, object: nil)
@@ -59,8 +60,6 @@ struct NestVaultApp: App {
                 .frame(minWidth: 960, idealWidth: 1160,
                        minHeight: 640, idealHeight: 780)
                 .onAppear {
-                    schedule.bind(api: api, store: store, power: power)
-                    schedule.start()
                     Task {
                         await api.checkHealth()
                         await api.fetchBackups()
@@ -97,6 +96,12 @@ struct NestVaultApp: App {
                 : "externaldrive.badge.exclamationmark"
             Image(systemName: img)
                 .symbolRenderingMode(.hierarchical)
+                .task {
+                    schedule.bind(api: api, store: store, power: power)
+                    schedule.start()
+                    await api.checkHealth()
+                    await api.fetchBackups()
+                }
         }
         .menuBarExtraStyle(.window)
 
