@@ -402,10 +402,7 @@ final class BackupRunner: ObservableObject {
             log(L("runner.sync_skipped", error.localizedDescription), .warning)
         }
 
-        // 7. Finalize
-        await finalizeVersion(label: label, versionKey: versionKey, ok: stats.errors == 0)
-
-        // 8. Absorb (accumulative mode — inherit file references from previous version)
+        // 7. Absorb (accumulative mode — must run before finalize, while version is still "running")
         if profile.accumulate, stats.errors == 0, let prevDoneKey {
             do {
                 let result = try await api.absorb(
@@ -418,6 +415,9 @@ final class BackupRunner: ObservableObject {
                 log(L("runner.absorb_error", error.localizedDescription), .warning)
             }
         }
+
+        // 8. Finalize
+        await finalizeVersion(label: label, versionKey: versionKey, ok: stats.errors == 0)
 
         // Persist hash cache pruned to the current file set
         let walkedPaths = Set(scannedFiles.map { $0.url.path })
