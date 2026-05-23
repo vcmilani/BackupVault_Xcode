@@ -24,4 +24,8 @@ __pycache__/
 .DS_Store
 
 # xcode
-build
+build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.pbxuser
