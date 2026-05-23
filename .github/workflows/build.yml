@@ -2,14 +2,15 @@ name: Build
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    tags:
+      - 'v*'
 
 jobs:
   build:
     name: Build (Universal)
     runs-on: macos-15
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -34,9 +35,40 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             clean build
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Package app
+        run: |
+          cd build/Build/Products/Release
+          zip -r NestVault.zip NestVault.app
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: NestVault.app
-          path: build/Build/Products/Release/NestVault.app
-          if-no-files-found: error
+          name: NestVault ${{ github.ref_name }}
+          body: |
+            ## NestVault ${{ github.ref_name }}
+
+            NestVault é um cliente Mac para Vault (HashiCorp), com suporte a múltiplos servidores, renovação automática de tokens e integração nativa com o macOS.
+
+            ---
+
+            ### Como instalar
+
+            1. Baixe o arquivo **NestVault.zip** abaixo
+            2. Extraia o arquivo e mova **NestVault.app** para a pasta **Aplicativos**
+            3. No primeiro uso, clique com o botão direito no app e selecione **Abrir** para contornar o Gatekeeper
+
+            > **Nota:** O app não é notarizado pela Apple, por isso o macOS pode exibir um aviso de segurança na primeira execução.
+
+            ---
+
+            ### Requisitos
+
+            - macOS 13 (Ventura) ou superior
+            - Mac com Apple Silicon ou Intel — **Universal Binary**
+
+            ---
+
+            Veja o [histórico de commits](../../commits/${{ github.ref_name }}) para detalhes das alterações desta versão.
+          files: build/Build/Products/Release/NestVault.zip
+          draft: false
+          prerelease: false
