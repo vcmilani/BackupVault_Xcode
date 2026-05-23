@@ -334,14 +334,14 @@ final class BackupRunner: ObservableObject {
         let phase2Start      = phase1Weight
 
         await withTaskGroup(of: Void.self) { group in
-            var inFlight = 0
-            var index    = 0
+            var inFlight        = 0
+            var index           = 0
+            var completedPhase2 = 0
 
             while index < workItems.count || inFlight > 0 {
                 while inFlight < concurrencyLimit && index < workItems.count {
                     guard !isCancelled else { break }
                     let item = workItems[index]
-                    let i    = index
                     index   += 1
                     inFlight += 1
 
@@ -363,9 +363,7 @@ final class BackupRunner: ObservableObject {
                             }
                         }
                         await MainActor.run {
-                            self.progress    = phase2Start + Double(i + 1) / Double(max(totalWork, 1)) * (1.0 - phase2Start)
                             self.currentFile = item.url.lastPathComponent
-                            DockProgress.shared.update(progress: self.progress)
                         }
                     }
                 }
@@ -375,6 +373,9 @@ final class BackupRunner: ObservableObject {
                 if inFlight > 0 {
                     await group.next()
                     inFlight -= 1
+                    completedPhase2 += 1
+                    progress = phase2Start + Double(completedPhase2) / Double(max(totalWork, 1)) * (1.0 - phase2Start)
+                    DockProgress.shared.update(progress: progress)
                     let s = await accumulator.snapshot()
                     stats.uploaded   = s.uploaded
                     stats.registered = s.registered
