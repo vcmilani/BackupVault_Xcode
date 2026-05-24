@@ -524,7 +524,8 @@ final class BackupRunner: ObservableObject {
             "label": label,
             "client_name": ProcessInfo.processInfo.hostName
         ])
-        let req = try api.buildRequest("/backups", method: "POST", body: body)
+        var req = try api.buildRequest("/backups", method: "POST", body: body)
+        req.timeoutInterval = 20
         let (data, resp) = try await session.data(for: req)
         guard let http = resp as? HTTPURLResponse else { return }
         if http.statusCode == 409 { return }
@@ -543,7 +544,8 @@ final class BackupRunner: ObservableObject {
         formatter.timeZone = TimeZone.current
         let versionKey = formatter.string(from: Date())
         let body = try JSONSerialization.data(withJSONObject: ["version_key": versionKey])
-        let req  = try api.buildRequest("/backups/\(label.urlSafe)/versions", method: "POST", body: body)
+        var req  = try api.buildRequest("/backups/\(label.urlSafe)/versions", method: "POST", body: body)
+        req.timeoutInterval = 20
         let (data, resp) = try await session.data(for: req)
         if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             let msg = String(data: data, encoding: .utf8) ?? "(sem mensagem)"
@@ -584,7 +586,8 @@ final class BackupRunner: ObservableObject {
             "version_key":  versionKey,
             "existing_paths": paths
         ] as [String: Any])
-        let req = try api.buildRequest("/sync", method: "POST", body: body)
+        var req = try api.buildRequest("/sync", method: "POST", body: body)
+        req.timeoutInterval = 120
         let (data, _) = try await session.data(for: req)
         let resp = try? JSONDecoder().decode(SyncResponse.self, from: data)
         return resp?.synced ?? false
@@ -592,10 +595,11 @@ final class BackupRunner: ObservableObject {
 
     private func finalizeVersion(label: String, versionKey: String, ok: Bool) async {
         guard let body = try? JSONSerialization.data(withJSONObject: ["status": ok ? "done" : "failed"]),
-              let req  = try? api.buildRequest(
+              var req  = try? api.buildRequest(
                   "/backups/\(label.urlSafe)/versions/\(versionKey.urlSafe)",
                   method: "PATCH", body: body)
         else { return }
+        req.timeoutInterval = 30
         _ = try? await URLSession.shared.data(for: req)
     }
 
