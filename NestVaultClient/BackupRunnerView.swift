@@ -119,7 +119,7 @@ struct BackupRunnerSheet: View {
 
             // ── Actions ──────────────────────────────────────────────
             HStack {
-                if runner.status == .done || runner.status == .failed {
+                if runner.status == .done || runner.status == .failed || runner.status == .cancelled {
                     Button("runner.close") { dismiss() }
                 }
                 Spacer()
