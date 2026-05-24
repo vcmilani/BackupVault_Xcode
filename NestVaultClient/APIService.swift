@@ -96,7 +96,8 @@ final class APIService: ObservableObject {
 
     func checkHealth() async {
         do {
-            let req  = try buildRequest("/health", method: "GET", body: nil)
+            var req  = try buildRequest("/health", method: "GET", body: nil)
+            req.timeoutInterval = 5
             let (data, resp) = try await URLSession.shared.data(for: req)
             if let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) {
                 let health = try JSONDecoder().decode(HealthResponse.self, from: data)
@@ -121,7 +122,8 @@ final class APIService: ObservableObject {
         isLoadingBackups = true
         defer { isLoadingBackups = false }
         do {
-            let req = try buildRequest("/backups", method: "GET", body: nil)
+            var req = try buildRequest("/backups", method: "GET", body: nil)
+            req.timeoutInterval = 20
             let (data, _) = try await URLSession.shared.data(for: req)
             backups = try JSONDecoder().decode([BackupSummary].self, from: data)
         } catch {
@@ -130,7 +132,8 @@ final class APIService: ObservableObject {
     }
 
     func deleteBackup(label: String) async throws {
-        let req = try buildRequest("/backups/\(label.urlSafe)", method: "DELETE", body: nil)
+        var req = try buildRequest("/backups/\(label.urlSafe)", method: "DELETE", body: nil)
+        req.timeoutInterval = 30
         let (data, resp) = try await URLSession.shared.data(for: req)
         if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             let msg = String(data: data, encoding: .utf8) ?? ""
@@ -141,7 +144,8 @@ final class APIService: ObservableObject {
     // MARK: - Versions
 
     func fetchVersions(label: String) async throws -> [BackupVersion] {
-        let req = try buildRequest("/backups/\(label.urlSafe)/versions", method: "GET", body: nil)
+        var req = try buildRequest("/backups/\(label.urlSafe)/versions", method: "GET", body: nil)
+        req.timeoutInterval = 20
         let (data, resp) = try await URLSession.shared.data(for: req)
         if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw apiError(http.statusCode, String(data: data, encoding: .utf8) ?? "")
@@ -161,9 +165,10 @@ final class APIService: ObservableObject {
     }
 
     func deleteVersion(label: String, versionKey: String) async throws -> VersionDeletedResponse {
-        let req = try buildRequest(
+        var req = try buildRequest(
             "/backups/\(label.urlSafe)/versions/\(versionKey.urlSafe)",
             method: "DELETE", body: nil)
+        req.timeoutInterval = 120
         let (data, resp) = try await URLSession.shared.data(for: req)
         if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw apiError(http.statusCode, String(data: data, encoding: .utf8) ?? "")
@@ -175,9 +180,10 @@ final class APIService: ObservableObject {
 
     func fetchFiles(label: String, versionKey: String) async throws -> [VersionFile] {
         let escaped = versionKey.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? versionKey
-        let req = try buildRequest(
+        var req = try buildRequest(
             "/files?backup_label=\(label.urlSafe)&version_key=\(escaped)",
             method: "GET", body: nil)
+        req.timeoutInterval = 30
         let (data, resp) = try await URLSession.shared.data(for: req)
         if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw apiError(http.statusCode, String(data: data, encoding: .utf8) ?? "")
@@ -191,7 +197,8 @@ final class APIService: ObservableObject {
         let body = try JSONSerialization.data(withJSONObject: [
             "backup_label": label, "keep": keep
         ] as [String: Any])
-        let req = try buildRequest("/backups/\(label.urlSafe)/cleanup", method: "POST", body: body)
+        var req = try buildRequest("/backups/\(label.urlSafe)/cleanup", method: "POST", body: body)
+        req.timeoutInterval = 120
         let (data, resp) = try await URLSession.shared.data(for: req)
         if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw apiError(http.statusCode, String(data: data, encoding: .utf8) ?? "")
@@ -215,9 +222,10 @@ final class APIService: ObservableObject {
     func absorb(session: URLSession, label: String,
                 versionKey: String, sourceVersionKey: String) async throws -> AbsorbResponse {
         let body = try JSONEncoder().encode(AbsorbRequest(sourceVersionKey: sourceVersionKey))
-        let req  = try buildRequest(
+        var req  = try buildRequest(
             "/backups/\(label.urlSafe)/versions/\(versionKey.urlSafe)/absorb",
             method: "POST", body: body)
+        req.timeoutInterval = 300
         let (data, resp) = try await session.data(for: req)
         if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw apiError(http.statusCode, String(data: data, encoding: .utf8) ?? "")
@@ -231,7 +239,7 @@ final class APIService: ObservableObject {
         guard let url = URL(string: serverURL + path) else {
             throw URLError(.badURL)
         }
-        var req = URLRequest(url: url, timeoutInterval: 60)
+        var req = URLRequest(url: url, timeoutInterval: 10)
         req.httpMethod = method
         if !apiKey.isEmpty {
             req.setValue(apiKey, forHTTPHeaderField: "X-API-Key")

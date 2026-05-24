@@ -94,6 +94,7 @@ struct VersionDetailView: View {
 
             // ── Footer actions ──────────────────────────────────────
             HStack {
+                Button("common.close") { dismiss() }
                 if let result = deleteResult {
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
