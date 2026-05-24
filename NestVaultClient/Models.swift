@@ -316,7 +316,7 @@ struct BackupProfile: Codable, Identifiable, Hashable {
     func cliCommand(defaultServer: String) -> String {
         let server = serverOverride.isEmpty ? defaultServer : serverOverride
         var parts = [
-            "python backup_client.py backup \(sourcePath.isEmpty ? "<pasta>" : sourcePath)",
+            "python nestvault.py backup \(sourcePath.isEmpty ? "<pasta>" : sourcePath)",
             "    --label \"\(label.isEmpty ? "<label>" : label)\"",
             "    --server \(server)",
             "    --workers \(workers)"
