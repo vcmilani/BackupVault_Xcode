@@ -92,6 +92,7 @@
 "runner.summary"               = "Enviados: %d  Registrados: %d  Cacheados: %d  Ignorados: %d  Erros: %d";
 "runner.absorb_done"           = "Absorb: %d arquivos herdados, %d ignorados";
 "runner.absorb_error"          = "Absorb falhou: %@";
+"runner.finalize_failed"       = "Não foi possível finalizar a versão no servidor — será limpo automaticamente no próximo restart";
 
 /* Version detail */
 "version.detail.files"         = "Arquivos";

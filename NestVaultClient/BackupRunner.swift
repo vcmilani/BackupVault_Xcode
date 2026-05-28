@@ -596,7 +596,17 @@ final class BackupRunner: ObservableObject {
                   "/backups/\(label.urlSafe)/versions/\(versionKey.urlSafe)",
                   method: "PATCH", body: body)
         else { return }
-        _ = try? await URLSession.shared.data(for: req)
+
+        for attempt in 1...3 {
+            do {
+                let (_, resp) = try await URLSession.shared.data(for: req)
+                if let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) {
+                    return
+                }
+            } catch { }
+            if attempt < 3 { try? await Task.sleep(nanoseconds: 2_000_000_000) }
+        }
+        log(L("runner.finalize_failed"), .warning)
     }
 
     // MARK: - SHA-256

@@ -92,6 +92,7 @@
 "runner.summary"               = "Uploaded: %d  Registered: %d  Cached: %d  Ignored: %d  Errors: %d";
 "runner.absorb_done"           = "Absorb: %d files inherited, %d skipped";
 "runner.absorb_error"          = "Absorb failed: %@";
+"runner.finalize_failed"       = "Could not finalize version on server — will be cleaned up on next server restart";
 
 /* Version detail */
 "version.detail.files"         = "Files";
