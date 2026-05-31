@@ -274,7 +274,7 @@ struct SettingsView: View {
     var aboutTab: some View {
         Form {
             Section("NestVault para macOS") {
-                LabeledContent("settings.about.version", value: "3.0.0")
+                LabeledContent("settings.about.version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
                 if !api.serverVersion.isEmpty {
                     LabeledContent(L("settings.about.server_version"), value: api.serverVersion)
                 }
