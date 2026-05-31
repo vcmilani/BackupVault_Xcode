@@ -60,7 +60,7 @@ struct SidebarView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("NestVault")
                         .font(.headline)
-                    Text("v2.3")
+                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

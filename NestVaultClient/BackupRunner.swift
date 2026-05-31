@@ -120,7 +120,7 @@ final class BackupRunner: ObservableObject {
         let scannedFiles: [ScannedFile]
         do {
             scannedFiles = try await Task.detached(priority: .userInitiated) {
-                let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .contentModificationDateKey, .fileSizeKey]
+                let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey, .contentModificationDateKey, .fileSizeKey]
                 guard let enumerator = FileManager.default.enumerator(
                     at: URL(fileURLWithPath: source),
                     includingPropertiesForKeys: Array(resourceKeys),
@@ -134,7 +134,11 @@ final class BackupRunner: ObservableObject {
                         enumerator.skipDescendants(); continue
                     }
                     let rv = try? url.resourceValues(forKeys: resourceKeys)
-                    if rv?.isDirectory != false { continue }
+                    // Skip directories, symlinks-to-directories, and anything that isn't a plain regular file
+                    if rv?.isSymbolicLink == true && rv?.isDirectory == true {
+                        enumerator.skipDescendants(); continue
+                    }
+                    if rv?.isRegularFile != true { continue }
                     let mtime = rv?.contentModificationDate?.timeIntervalSince1970 ?? 0
                     let size  = Int64(rv?.fileSize ?? 0)
                     files.append(ScannedFile(url: url, mtime: mtime, size: size))
@@ -222,6 +226,7 @@ final class BackupRunner: ObservableObject {
             // Server version cache
             if let cached = cache[serverPath], cached.mtime == file.mtime, cached.size == file.size {
                 fastEntries.append((file.url, serverPath, cached.sha256, file.mtime))
+                await hashCache.set(path: file.url.path, mtime: file.mtime, size: file.size, sha256: cached.sha256)
                 continue
             }
             slowEntries.append((file.url, serverPath, file.size, file.mtime))
@@ -447,16 +452,22 @@ final class BackupRunner: ObservableObject {
         }
 
         // 7. Absorb (accumulative mode — must run before finalize, while version is still "running")
-        if profile.accumulate, stats.errors == 0, let prevDoneKey {
-            do {
-                let result = try await api.absorb(
-                    session: session, label: label,
-                    versionKey: versionKey, sourceVersionKey: prevDoneKey)
-                stats.inherited = result.inherited
-                stats.skipped   = result.skipped
-                log(L("runner.absorb_done", result.inherited, result.skipped), .success)
-            } catch {
-                log(L("runner.absorb_error", error.localizedDescription), .warning)
+        if profile.accumulate {
+            if prevDoneKey == nil {
+                log(L("runner.accumulate_no_prev"), .info)
+            } else if stats.errors > 0 {
+                log(L("runner.accumulate_skipped_errors"), .warning)
+            } else if let prevDoneKey {
+                do {
+                    let result = try await api.absorb(
+                        session: session, label: label,
+                        versionKey: versionKey, sourceVersionKey: prevDoneKey)
+                    stats.inherited = result.inherited
+                    stats.skipped   = result.skipped
+                    log(L("runner.absorb_done", result.inherited, result.skipped), .success)
+                } catch {
+                    log(L("runner.absorb_error", error.localizedDescription), .warning)
+                }
             }
         }
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BackupRunnerSheet: View {
     @EnvironmentObject var api:      APIService
+    @EnvironmentObject var store:    ConfigStore
     @EnvironmentObject var schedule: ScheduleManager
     @Environment(\.dismiss) private var dismiss
 
@@ -138,6 +139,11 @@ struct BackupRunnerSheet: View {
                         schedule.registerManualRunner(runner, profileId: profile.id)
                         await runner.run(profile: profile)
                         schedule.clearManualRunner(runner)
+                        if runner.wasFullBackup && runner.status == .done {
+                            var updated = profile
+                            updated.lastFullBackupDate = Date()
+                            store.update(updated)
+                        }
                     }
                 }
                 .buttonStyle(.borderedProminent)

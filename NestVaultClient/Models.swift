@@ -430,7 +430,21 @@ struct BackupProfile: Codable, Identifiable, Hashable {
         return tokens
     }
 
-    static func == (lhs: BackupProfile, rhs: BackupProfile) -> Bool { lhs.id == rhs.id }
+    // Full equality so SwiftUI @State re-renders when any field changes (e.g. toggles).
+    // List selection uses Identifiable (id), not ==, so this doesn't break selection.
+    static func == (lhs: BackupProfile, rhs: BackupProfile) -> Bool {
+        lhs.id             == rhs.id             &&
+        lhs.name           == rhs.name           &&
+        lhs.label          == rhs.label          &&
+        lhs.sourcePath     == rhs.sourcePath     &&
+        lhs.excludes       == rhs.excludes       &&
+        lhs.workers        == rhs.workers        &&
+        lhs.prefix         == rhs.prefix         &&
+        lhs.serverOverride == rhs.serverOverride &&
+        lhs.enabled        == rhs.enabled        &&
+        lhs.accumulate     == rhs.accumulate     &&
+        lhs.smartSkip      == rhs.smartSkip
+    }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
