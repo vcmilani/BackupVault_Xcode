@@ -104,6 +104,15 @@ NestVault_Xcode/
 - Delete backup from server (context menu)
 - Python equivalent command preview
 
+### Smart Skip (v3.0)
+- Optional per-profile toggle: **Skip if no changes**
+- Before running the classify/hash/upload pipeline, compares the local file tree against the hash cache (`mtime` + `size`)
+- If 0 files changed: skips classify, execute, and sync phases entirely; creates a new version by calling `POST /absorb` from the previous version — no upload
+- If any file changed (or was added/deleted): falls back to a full backup automatically
+- **1-week safety override:** if more than 7 days have elapsed since the last full backup, a full run is forced regardless of change detection, to keep the server verified
+- `lastFullBackupDate` is persisted per profile and updated only after a real full backup completes
+- Recommended for backups maintained by a single client machine (no concurrent writers)
+
 ### Scheduling
 - 5 modes: **Disabled / Hourly / Daily / Weekly / Custom (minutes)**
 - Daily and Weekly respect a configured time-of-day
@@ -204,7 +213,7 @@ The `BackupRunner` performs backups in two phases:
 |-----|---------|
 | `server_url` | Server URL |
 | `api_key` | API Key |
-| `backupProfiles_v1` | JSON array of `BackupProfile` (includes `BackupSchedule`, `lastRun`) |
+| `backupProfiles_v1` | JSON array of `BackupProfile` (includes `BackupSchedule`, `lastRun`, `smartSkip`, `lastFullBackupDate`) |
 | `schedule.pauseOnBattery` | Bool — pause when on battery |
 | `schedule.minBatteryPercent` | Int — minimum battery level to run |
 

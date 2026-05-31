@@ -92,6 +92,8 @@
 "runner.summary"               = "Enviados: %d  Registrados: %d  Cacheados: %d  Ignorados: %d  Erros: %d";
 "runner.absorb_done"           = "Absorb: %d arquivos herdados, %d ignorados";
 "runner.absorb_error"          = "Absorb falhou: %@";
+"runner.smart_skip_detected"   = "Nenhuma alteração detectada (%d arquivos). Usando smart skip.";
+"runner.smart_skip_forced_full" = "Smart skip: último backup completo há mais de 1 semana — executando backup completo para verificar o servidor.";
 "runner.finalize_failed"       = "Não foi possível finalizar a versão no servidor — será limpo automaticamente no próximo restart";
 
 /* Version detail */
@@ -223,8 +225,10 @@
 "editor.panel.title"       = "Selecione a pasta de origem";
 "editor.panel.prompt"      = "Selecionar";
 "editor.section.mode"      = "Modo";
-"editor.field.accumulate"  = "Modo acumulativo";
+"editor.field.accumulate"      = "Modo acumulativo";
 "editor.field.accumulate_hint" = "Herda referências de arquivos de versões anteriores ao finalizar. Ideal para HDs externos conectados periodicamente.";
+"editor.field.smart_skip"      = "Pular se sem alterações";
+"editor.field.smart_skip_hint" = "Quando nenhum arquivo local mudou, cria uma versão herdando da anterior — sem upload. Indicado se o backup é mantido por apenas um cliente.";
 
 /* Info Cards */
 "card.source_folder"  = "Pasta de Origem";
@@ -321,3 +325,20 @@
 "settings.queue_sched.last_run"    = "Última execução";
 "settings.queue_sched.next_run"    = "Próxima execução";
 "settings.queue_sched.never"       = "Nunca";
+
+/* CLI Import / Export */
+"import.title"            = "Importar Comando";
+"import.confirm"          = "Importar";
+"import.paste_hint"       = "Cole um comando nestvault backup:";
+"import.preview_title"    = "Campos reconhecidos";
+"import.field.label"      = "Label";
+"import.field.source"     = "Origem";
+"import.field.server"     = "Servidor";
+"import.field.workers"    = "Workers";
+"import.field.excludes"   = "Exclusões";
+"import.field.absorb"     = "Acumular";
+"import.field.absorb_on"  = "ativado";
+"import.default_server"   = "(padrão)";
+"import.parse_error"      = "Comando não reconhecido. Certifique-se de que começa com 'nestvault backup <caminho>'.";
+"card.cli.copy"           = "Copiar";
+"mybackups.import_cmd"    = "Importar Comando";
