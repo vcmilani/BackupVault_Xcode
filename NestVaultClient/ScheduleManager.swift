@@ -162,6 +162,9 @@ final class ScheduleManager: ObservableObject {
         case .cancelled: updated.lastRunStatus = "cancelled"
         default:         updated.lastRunStatus = "unknown"
         }
+        if runner.wasFullBackup && runner.status == .done {
+            updated.lastFullBackupDate = Date()
+        }
         store.update(updated)
 
         activeRunner = nil

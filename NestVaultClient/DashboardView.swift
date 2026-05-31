@@ -15,7 +15,7 @@ struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("dashboard.title")
                             .font(.largeTitle.bold())
-                        Text("dashboard.subtitle")
+                        Text("NestVault \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }

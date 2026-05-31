@@ -14,6 +14,7 @@ struct BackupConfigsView: View {
     @State private var showQueue    = false
     @State private var showDeleteBackup = false
     @State private var deleteBackupError: String?
+    @State private var showImport       = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -35,6 +36,11 @@ struct BackupConfigsView: View {
                     .buttonStyle(.plain)
                     .help("mybackups.run_queue")
                     .disabled(store.profiles.filter { $0.enabled }.isEmpty)
+                    Button { showImport = true } label: {
+                        Image(systemName: "arrow.down.circle").font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .help("mybackups.import_cmd")
                     Button { showAdd = true } label: {
                         Image(systemName: "plus").font(.caption)
                     }
@@ -139,6 +145,11 @@ struct BackupConfigsView: View {
             ProfileEditorSheet(profile: p, defaultServer: api.serverURL) { updated in
                 store.update(updated)
                 if selected?.id == updated.id { selected = updated }
+            }
+        }
+        .sheet(isPresented: $showImport) {
+            ImportCommandSheet { p in
+                store.add(p); selected = p
             }
         }
         .alert("mybackups.delete_config_title", isPresented: $showDelete) {
@@ -282,11 +293,25 @@ struct ProfileDetailView: View {
 
                 // CLI command preview
                 ProfileInfoCard(title: L("card.cli"), icon: "terminal.fill", iconColor: .secondary) {
-                    Text(profile.cliCommand(defaultServer: defaultServer))
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(profile.cliCommand(defaultServer: defaultServer))
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                        HStack {
+                            Spacer()
+                            Button {
+                                let pb = NSPasteboard.general
+                                pb.clearContents()
+                                pb.setString(profile.cliCommand(defaultServer: defaultServer), forType: .string)
+                            } label: {
+                                Label(L("card.cli.copy"), systemImage: "doc.on.doc")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
                 }
             }
             .padding(.horizontal, 16)
@@ -469,6 +494,9 @@ struct ProfileEditorSheet: View {
                             Toggle("editor.field.accumulate", isOn: $draft.accumulate)
                             Text("editor.field.accumulate_hint")
                                 .font(.caption).foregroundStyle(.secondary)
+                            Toggle("editor.field.smart_skip", isOn: $draft.smartSkip)
+                            Text("editor.field.smart_skip_hint")
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                     }
                     .formStyle(.grouped)
@@ -588,5 +616,101 @@ struct ExcludesEditor: View {
         guard !t.isEmpty, !local.contains(t) else { return }
         local.append(t)
         newExclude = ""
+    }
+}
+
+// MARK: - Import Command Sheet
+
+struct ImportCommandSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let onImport: (BackupProfile) -> Void
+
+    @State private var commandText = ""
+    @State private var parsed: BackupProfile?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button("common.cancel") { dismiss() }
+                Spacer()
+                Text("import.title").font(.headline)
+                Spacer()
+                Button("import.confirm") {
+                    if let p = parsed { onImport(p); dismiss() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(parsed == nil)
+            }
+            .padding(16)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 14) {
+                Text("import.paste_hint")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                TextEditor(text: $commandText)
+                    .font(.caption.monospaced())
+                    .frame(minHeight: 100, maxHeight: 140)
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .background(Color(NSColor.textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator, lineWidth: 1))
+                    .onChange(of: commandText) { _, new in
+                        parsed = BackupProfile(cliString: new)
+                    }
+
+                if let p = parsed {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("import.preview_title", systemImage: "checkmark.circle.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.green)
+                        VStack(alignment: .leading, spacing: 4) {
+                            ImportPreviewRow(key: "import.field.label",  value: p.label.isEmpty ? "-" : p.label)
+                            ImportPreviewRow(key: "import.field.source", value: p.sourcePath)
+                            ImportPreviewRow(key: "import.field.server", value: p.serverOverride.isEmpty ? L("import.default_server") : p.serverOverride)
+                            if p.workers != 4 {
+                                ImportPreviewRow(key: "import.field.workers", value: "\(p.workers)")
+                            }
+                            if !p.excludes.isEmpty {
+                                ImportPreviewRow(key: "import.field.excludes", value: p.excludes.joined(separator: ", "))
+                            }
+                            if p.accumulate {
+                                ImportPreviewRow(key: "import.field.absorb", value: L("import.field.absorb_on"))
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.green.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.green.opacity(0.2), lineWidth: 1))
+                } else if !commandText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Label("import.parse_error", systemImage: "xmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+
+                Spacer()
+            }
+            .padding(16)
+        }
+        .frame(width: 460, height: 360)
+    }
+}
+
+private struct ImportPreviewRow: View {
+    let key: String
+    let value: String
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(LocalizedStringKey(key))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 72, alignment: .trailing)
+            Text(value)
+                .font(.caption.monospaced())
+                .lineLimit(2)
+        }
     }
 }

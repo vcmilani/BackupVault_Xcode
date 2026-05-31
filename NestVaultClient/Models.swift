@@ -279,12 +279,17 @@ struct BackupProfile: Codable, Identifiable, Hashable {
     // Accumulative mode (v2.8)
     var accumulate: Bool = false
 
+    // Smart skip mode (v3.0)
+    var smartSkip: Bool = false
+    var lastFullBackupDate: Date?
+
     init(name: String = "Novo Backup", label: String = "", sourcePath: String = "",
          excludes: [String] = [], workers: Int = 4, prefix: String = "",
          serverOverride: String = "", enabled: Bool = true,
          schedule: BackupSchedule = BackupSchedule(),
          lastRun: Date? = nil, lastRunStatus: String? = nil,
-         accumulate: Bool = false) {
+         accumulate: Bool = false,
+         smartSkip: Bool = false, lastFullBackupDate: Date? = nil) {
         self.name = name; self.label = label; self.sourcePath = sourcePath
         self.excludes = excludes; self.workers = workers; self.prefix = prefix
         self.serverOverride = serverOverride; self.enabled = enabled
@@ -292,42 +297,154 @@ struct BackupProfile: Codable, Identifiable, Hashable {
         self.lastRun  = lastRun
         self.lastRunStatus = lastRunStatus
         self.accumulate = accumulate
+        self.smartSkip = smartSkip
+        self.lastFullBackupDate = lastFullBackupDate
     }
 
     // Custom decoder: uses decodeIfPresent for fields added after v1.0 so that
     // existing UserDefaults data (missing those keys) still loads correctly.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id             = try c.decode(UUID.self,     forKey: .id)
-        name           = try c.decode(String.self,   forKey: .name)
-        label          = try c.decode(String.self,   forKey: .label)
-        sourcePath     = try c.decode(String.self,   forKey: .sourcePath)
-        excludes       = try c.decode([String].self, forKey: .excludes)
-        workers        = try c.decode(Int.self,      forKey: .workers)
-        prefix         = try c.decode(String.self,   forKey: .prefix)
-        serverOverride = try c.decode(String.self,   forKey: .serverOverride)
-        enabled        = try c.decode(Bool.self,     forKey: .enabled)
-        schedule       = try c.decodeIfPresent(BackupSchedule.self, forKey: .schedule) ?? BackupSchedule()
-        lastRun        = try c.decodeIfPresent(Date.self,           forKey: .lastRun)
-        lastRunStatus  = try c.decodeIfPresent(String.self,         forKey: .lastRunStatus)
-        accumulate     = try c.decodeIfPresent(Bool.self,           forKey: .accumulate) ?? false
+        id                 = try c.decode(UUID.self,     forKey: .id)
+        name               = try c.decode(String.self,   forKey: .name)
+        label              = try c.decode(String.self,   forKey: .label)
+        sourcePath         = try c.decode(String.self,   forKey: .sourcePath)
+        excludes           = try c.decode([String].self, forKey: .excludes)
+        workers            = try c.decode(Int.self,      forKey: .workers)
+        prefix             = try c.decode(String.self,   forKey: .prefix)
+        serverOverride     = try c.decode(String.self,   forKey: .serverOverride)
+        enabled            = try c.decode(Bool.self,     forKey: .enabled)
+        schedule           = try c.decodeIfPresent(BackupSchedule.self, forKey: .schedule) ?? BackupSchedule()
+        lastRun            = try c.decodeIfPresent(Date.self,           forKey: .lastRun)
+        lastRunStatus      = try c.decodeIfPresent(String.self,         forKey: .lastRunStatus)
+        accumulate         = try c.decodeIfPresent(Bool.self,           forKey: .accumulate) ?? false
+        smartSkip          = try c.decodeIfPresent(Bool.self,           forKey: .smartSkip) ?? false
+        lastFullBackupDate = try c.decodeIfPresent(Date.self,           forKey: .lastFullBackupDate)
     }
 
     func cliCommand(defaultServer: String) -> String {
         let server = serverOverride.isEmpty ? defaultServer : serverOverride
         var parts = [
-            "python nestvault.py backup \(sourcePath.isEmpty ? "<pasta>" : sourcePath)",
-            "    --label \"\(label.isEmpty ? "<label>" : label)\"",
-            "    --server \(server)",
-            "    --workers \(workers)"
+            "nestvault backup \(sourcePath.isEmpty ? "<pasta>" : sourcePath)",
+            "  --label \"\(label.isEmpty ? "<label>" : label)\"",
+            "  --server \(server)"
         ]
-        if !prefix.isEmpty   { parts.append("    --prefix \(prefix)") }
-        if !excludes.isEmpty { parts.append("    --exclude \(excludes.joined(separator: " "))") }
-        if accumulate        { parts.append("    --absorb") }
+        if workers != 4 { parts.append("  --workers \(workers)") }
+        if !prefix.isEmpty {
+            let q = prefix.contains(" ") ? "\"\(prefix)\"" : prefix
+            parts.append("  --prefix \(q)")
+        }
+        if !excludes.isEmpty {
+            let exc = excludes.map { $0.contains(" ") ? "\"\($0)\"" : $0 }.joined(separator: " ")
+            parts.append("  --exclude \(exc)")
+        }
+        if accumulate { parts.append("  --absorb") }
         return parts.joined(separator: " \\\n")
     }
 
-    static func == (lhs: BackupProfile, rhs: BackupProfile) -> Bool { lhs.id == rhs.id }
+    init?(cliString raw: String) {
+        // Join continuation lines ("foo \\n  --bar" → "foo   --bar")
+        let joined = raw.components(separatedBy: "\n").map { line -> String in
+            var l = line.trimmingCharacters(in: .whitespaces)
+            if l.hasSuffix("\\") { l = String(l.dropLast()).trimmingCharacters(in: .whitespaces) }
+            return l
+        }.filter { !$0.isEmpty }.joined(separator: " ")
+
+        let tokens = BackupProfile.tokenize(joined)
+
+        guard let backupIdx = tokens.firstIndex(of: "backup") else { return nil }
+        let args = Array(tokens.dropFirst(backupIdx + 1))
+        guard !args.isEmpty else { return nil }
+
+        var path = ""
+        var parsedLabel = ""
+        var parsedServer = ""
+        var parsedWorkers = 4
+        var parsedPrefix = ""
+        var parsedExcludes: [String] = []
+        var parsedAccumulate = false
+        var seenFlag = false
+
+        var i = 0
+        while i < args.count {
+            let tok = args[i]
+            if tok.hasPrefix("-") {
+                seenFlag = true
+                switch tok {
+                case "--label", "-l":
+                    i += 1; if i < args.count { parsedLabel = args[i] }
+                case "--server", "-s":
+                    i += 1; if i < args.count { parsedServer = args[i] }
+                case "--workers", "-w":
+                    i += 1; if i < args.count { parsedWorkers = Int(args[i]) ?? 4 }
+                case "--prefix", "-p":
+                    i += 1; if i < args.count { parsedPrefix = args[i] }
+                case "--absorb":
+                    parsedAccumulate = true
+                case "--exclude", "-e":
+                    i += 1
+                    while i < args.count && !args[i].hasPrefix("-") {
+                        parsedExcludes.append(args[i])
+                        i += 1
+                    }
+                    continue
+                default: break
+                }
+            } else if !seenFlag && path.isEmpty {
+                path = tok
+            }
+            i += 1
+        }
+
+        guard !path.isEmpty else { return nil }
+
+        self.init(
+            name: parsedLabel.isEmpty ? path : parsedLabel,
+            label: parsedLabel,
+            sourcePath: path,
+            excludes: parsedExcludes,
+            workers: parsedWorkers,
+            prefix: parsedPrefix,
+            serverOverride: parsedServer,
+            enabled: true,
+            accumulate: parsedAccumulate
+        )
+    }
+
+    private static func tokenize(_ input: String) -> [String] {
+        var tokens: [String] = []
+        var current = ""
+        var inQuote: Character?
+        for ch in input {
+            if let q = inQuote {
+                if ch == q { inQuote = nil } else { current.append(ch) }
+            } else if ch == "\"" || ch == "'" {
+                inQuote = ch
+            } else if ch.isWhitespace {
+                if !current.isEmpty { tokens.append(current); current = "" }
+            } else {
+                current.append(ch)
+            }
+        }
+        if !current.isEmpty { tokens.append(current) }
+        return tokens
+    }
+
+    // Full equality so SwiftUI @State re-renders when any field changes (e.g. toggles).
+    // List selection uses Identifiable (id), not ==, so this doesn't break selection.
+    static func == (lhs: BackupProfile, rhs: BackupProfile) -> Bool {
+        lhs.id             == rhs.id             &&
+        lhs.name           == rhs.name           &&
+        lhs.label          == rhs.label          &&
+        lhs.sourcePath     == rhs.sourcePath     &&
+        lhs.excludes       == rhs.excludes       &&
+        lhs.workers        == rhs.workers        &&
+        lhs.prefix         == rhs.prefix         &&
+        lhs.serverOverride == rhs.serverOverride &&
+        lhs.enabled        == rhs.enabled        &&
+        lhs.accumulate     == rhs.accumulate     &&
+        lhs.smartSkip      == rhs.smartSkip
+    }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
