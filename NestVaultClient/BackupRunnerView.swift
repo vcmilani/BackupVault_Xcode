@@ -136,11 +136,12 @@ struct BackupRunnerSheet: View {
                 }
                 Button(runner.status == .idle ? "runner.start" : "runner.run_again") {
                     Task {
-                        schedule.registerManualRunner(runner, profileId: profile.id)
-                        await runner.run(profile: profile)
+                        let current = store.profiles.first(where: { $0.id == profile.id }) ?? profile
+                        schedule.registerManualRunner(runner, profileId: current.id)
+                        await runner.run(profile: current)
                         schedule.clearManualRunner(runner)
                         if runner.wasFullBackup && runner.status == .done {
-                            var updated = profile
+                            var updated = current
                             updated.lastFullBackupDate = Date()
                             store.update(updated)
                         }
